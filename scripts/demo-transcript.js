@@ -22,6 +22,11 @@ const commands = [
     args: ['./src/cli.js', 'inspect', '--snapshot', 'fixtures/unbalanced-route-failure.json']
   },
   {
+    title: 'Run a payment-readiness gate',
+    command: 'npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json',
+    args: ['./src/cli.js', 'gate', '--snapshot', 'fixtures/healthy-ready.json']
+  },
+  {
     title: 'Compare fresh node against route-probed node',
     command: 'npm run fiber-scope -- diff --before fixtures/no-peers-no-graph.json --after fixtures/unbalanced-route-failure.json',
     args: ['./src/cli.js', 'diff', '--before', 'fixtures/no-peers-no-graph.json', '--after', 'fixtures/unbalanced-route-failure.json']

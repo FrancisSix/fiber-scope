@@ -1,5 +1,6 @@
 import {
   diffSnapshots,
+  evaluateReadinessGate,
   formatAmount,
   inspectSnapshot,
   renderMarkdownReport,
@@ -47,6 +48,9 @@ const elements = {
   rebalanceCount: document.querySelector('#rebalance-count'),
   rebalance: document.querySelector('#rebalance-output'),
   copyRebalance: document.querySelector('#copy-rebalance'),
+  gateCount: document.querySelector('#gate-count'),
+  gateSummary: document.querySelector('#gate-summary'),
+  gateFailures: document.querySelector('#gate-failures'),
   diffCount: document.querySelector('#diff-count'),
   diffSummary: document.querySelector('#diff-summary'),
   diffMetrics: document.querySelector('#diff-metrics'),
@@ -150,6 +154,7 @@ function render() {
   renderFindings(inspection);
   renderChannels(inspection);
   renderRebalance(inspection);
+  renderGate(inspection);
   renderDiff(state.diff);
   renderPresets();
   renderRpc(inspection);
@@ -325,6 +330,32 @@ function renderRebalance(inspection) {
     return;
   }
   elements.rebalance.textContent = JSON.stringify(inspection.rebalanceSuggestions[0].automaticDryRun, null, 2);
+}
+
+function renderGate(inspection) {
+  const gate = evaluateReadinessGate(inspection);
+  elements.gateCount.textContent = gate.passed ? 'pass' : `${gate.failures.length} blockers`;
+  elements.gateSummary.className = `gate-summary ${gate.verdict}`;
+  elements.gateSummary.innerHTML = `
+    <div>
+      <strong>${escapeHtml(gate.verdict)}</strong>
+      <span>${escapeHtml(gate.summary)}</span>
+    </div>
+    <div class="gate-score">${escapeHtml(String(gate.node.score))}</div>
+  `;
+  elements.gateFailures.innerHTML = gate.failures.map((failure) => `
+    <article class="gate-failure">
+      <code>${escapeHtml(failure.id)}</code>
+      <strong>${escapeHtml(failure.title)}</strong>
+      <p>${escapeHtml(failure.evidence)}</p>
+    </article>
+  `).join('') || `
+    <article class="gate-failure pass">
+      <code>FS-GATE-PASS-001</code>
+      <strong>Payment readiness checks passed</strong>
+      <p>Score, status, route dry run, severity, and required RPC evidence satisfy the default gate.</p>
+    </article>
+  `;
 }
 
 function renderDiff(diff) {

@@ -25,6 +25,17 @@ const PENDING_STATES = new Set([
   'AwaitingChannelReady'
 ]);
 
+const STATUS_RANK = { blocked: 0, degraded: 1, ready: 2 };
+const SEVERITY_RANK = { info: 0, warning: 1, critical: 2 };
+const DEFAULT_GATE_REQUIRED_RPC = [
+  'node_info',
+  'list_peers',
+  'list_channels',
+  'graph_nodes',
+  'graph_channels',
+  'send_payment_dry_run'
+];
+
 export function inspectSnapshot(snapshot, options = {}) {
   const rpc = snapshot?.rpc ?? {};
   const nodeEntry = rpcEntry(rpc, 'node_info');
@@ -282,6 +293,124 @@ export function inspectSnapshot(snapshot, options = {}) {
     rebalanceSuggestions,
     rpcCoverage: buildRpcCoverage(rpc)
   };
+}
+
+export function evaluateReadinessGate(inspection, options = {}) {
+  const policy = normalizeGatePolicy(options);
+  const failures = [];
+
+  if (inspection.score < policy.minScore) {
+    failures.push({
+      id: 'FS-GATE-SCORE-001',
+      title: 'Readiness score is below policy',
+      evidence: `score=${inspection.score}, required>=${policy.minScore}`,
+      recommendation: 'Resolve the highest severity findings, then rerun the gate.'
+    });
+  }
+
+  if (statusRank(inspection.status) < statusRank(policy.minStatus)) {
+    failures.push({
+      id: 'FS-GATE-STATUS-001',
+      title: 'Node status is below policy',
+      evidence: `status=${inspection.status}, required>=${policy.minStatus}`,
+      recommendation: 'Bring the node to route-ready status before treating it as payment-ready.'
+    });
+  }
+
+  const severityBlockers = inspection.findings.filter((finding) => (
+    severityRank(finding.severity) > severityRank(policy.maxSeverity)
+  ));
+  if (severityBlockers.length > 0) {
+    failures.push({
+      id: 'FS-GATE-SEVERITY-001',
+      title: 'Findings exceed allowed severity',
+      evidence: severityBlockers.map((finding) => `${finding.id}:${finding.severity}`).join(', '),
+      recommendation: `Resolve findings above ${policy.maxSeverity} severity or relax the gate for non-payment checks.`
+    });
+  }
+
+  if (policy.requireRouteReady && inspection.route.status !== 'ready') {
+    failures.push({
+      id: 'FS-GATE-ROUTE-001',
+      title: 'Route dry run is not ready',
+      evidence: inspection.route.reason ?? inspection.route.evidence ?? `route status=${inspection.route.status}`,
+      recommendation: 'Capture a successful send_payment dry run for the target amount before opening the gate.'
+    });
+  }
+
+  const missingRpc = inspection.rpcCoverage.filter((item) => (
+    policy.requiredRpc.includes(item.method) && item.status !== 'ok'
+  ));
+  if (missingRpc.length > 0) {
+    failures.push({
+      id: 'FS-GATE-RPC-COVERAGE-001',
+      title: 'Required RPC evidence is incomplete',
+      evidence: missingRpc.map((item) => `${item.method}:${item.status}`).join(', '),
+      recommendation: 'Collect a fresh snapshot with the required diagnostic RPC scopes and dry-run evidence.'
+    });
+  }
+
+  const passed = failures.length === 0;
+
+  return {
+    product: 'FiberScope',
+    type: 'readiness_gate',
+    passed,
+    verdict: passed ? 'pass' : 'fail',
+    summary: passed
+      ? 'Node satisfies the payment-readiness gate.'
+      : `${failures.length} gate check${failures.length === 1 ? '' : 's'} failed.`,
+    policy,
+    node: {
+      name: inspection.metrics.nodeName,
+      version: inspection.metrics.version,
+      pubkey: inspection.metrics.pubkey,
+      source: inspection.source,
+      status: inspection.status,
+      score: inspection.score,
+      routeStatus: inspection.route.status
+    },
+    failures,
+    blockingFindings: severityBlockers.map((finding) => ({
+      id: finding.id,
+      severity: finding.severity,
+      title: finding.title,
+      evidence: finding.evidence,
+      recommendation: finding.recommendation
+    }))
+  };
+}
+
+export function renderConsoleGate(gate) {
+  const lines = [];
+  lines.push(`FiberScope Gate: ${gate.verdict.toUpperCase()}`);
+  lines.push(`Node: ${gate.node.name} ${gate.node.version} (${gate.node.status}, ${gate.node.score}/100)`);
+  lines.push(`Route: ${gate.node.routeStatus}`);
+  lines.push(`Policy: status>=${gate.policy.minStatus} score>=${gate.policy.minScore} max_severity=${gate.policy.maxSeverity} route_ready=${gate.policy.requireRouteReady}`);
+  lines.push(`Required RPC: ${gate.policy.requiredRpc.join(', ')}`);
+  lines.push('');
+
+  if (gate.passed) {
+    lines.push(gate.summary);
+    return lines.join('\n');
+  }
+
+  lines.push('Gate failures:');
+  for (const failure of gate.failures) {
+    lines.push(`- ${failure.id}: ${failure.title}`);
+    lines.push(`  Evidence: ${failure.evidence}`);
+    lines.push(`  Next: ${failure.recommendation}`);
+  }
+
+  if (gate.blockingFindings.length > 0) {
+    lines.push('');
+    lines.push('Blocking findings:');
+    for (const finding of gate.blockingFindings.slice(0, 5)) {
+      lines.push(`- [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.title}`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 export function renderConsoleSummary(inspection) {
@@ -561,8 +690,7 @@ function channelIdentity(channel) {
 }
 
 function statusRank(status) {
-  const ranks = { blocked: 0, degraded: 1, ready: 2 };
-  return ranks[status] ?? 0;
+  return STATUS_RANK[status] ?? 0;
 }
 
 function diffVerdict(scoreDelta, statusDelta, resolvedFindings, introducedFindings) {
@@ -899,6 +1027,43 @@ function assetLabel(script) {
 function sortFindings(findings) {
   const rank = { critical: 0, warning: 1, info: 2 };
   return [...findings].sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || a.id.localeCompare(b.id));
+}
+
+function normalizeGatePolicy(options) {
+  return {
+    minScore: numberOrDefault(options.minScore, 90),
+    minStatus: normalizeStatus(options.minStatus ?? options.status ?? 'ready'),
+    maxSeverity: normalizeSeverity(options.maxSeverity ?? 'info'),
+    requireRouteReady: options.requireRouteReady !== false,
+    requiredRpc: normalizeRequiredRpc(options.requiredRpc ?? DEFAULT_GATE_REQUIRED_RPC)
+  };
+}
+
+function normalizeRequiredRpc(value) {
+  const methods = Array.isArray(value)
+    ? value
+    : String(value ?? '').split(',');
+  const cleaned = methods.map((method) => String(method).trim()).filter(Boolean);
+  return cleaned.length > 0 ? cleaned : [...DEFAULT_GATE_REQUIRED_RPC];
+}
+
+function normalizeStatus(value) {
+  const status = String(value ?? '').trim().toLowerCase();
+  return Object.hasOwn(STATUS_RANK, status) ? status : 'ready';
+}
+
+function normalizeSeverity(value) {
+  const severity = String(value ?? '').trim().toLowerCase();
+  return Object.hasOwn(SEVERITY_RANK, severity) ? severity : 'info';
+}
+
+function severityRank(severity) {
+  return SEVERITY_RANK[severity] ?? 0;
+}
+
+function numberOrDefault(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function computeScore(findings) {

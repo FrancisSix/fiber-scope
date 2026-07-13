@@ -7,6 +7,7 @@ const commands = [
   [node, ['./src/cli.js', 'fixtures']],
   [node, ['./src/cli.js', 'presets', '--network', 'testnet']],
   [node, ['./src/cli.js', 'inspect', '--snapshot', 'fixtures/unbalanced-route-failure.json']],
+  [node, ['./src/cli.js', 'gate', '--snapshot', 'fixtures/healthy-ready.json']],
   [node, ['./src/cli.js', 'report', '--snapshot', 'fixtures/unbalanced-route-failure.json', '--out', 'docs/demo-report.md']],
   [node, ['./src/cli.js', 'diff', '--before', 'fixtures/no-peers-no-graph.json', '--after', 'fixtures/unbalanced-route-failure.json', '--out', 'docs/demo-diff.md']],
   [node, ['./scripts/demo-transcript.js']]

@@ -29,6 +29,7 @@ That diagnostic loop is exactly where infrastructure teams lose time. FiberScope
 9. Public-node presets that generate `connect_peer`, `open_channel`, and follow-up collection commands.
 10. Submission brief and reproducible CLI transcript for judges.
 11. Dashboard Live RPC Lab backed by a local `/api/collect` proxy.
+12. Payment-readiness gate for CLI automation and dashboard review.
 
 ## Demo Script
 
@@ -38,10 +39,11 @@ That diagnostic loop is exactly where infrastructure teams lose time. FiberScope
 4. Show Snapshot Diff from fresh-node to route-probed node.
 5. Show Public Node Presets and generate a testnet bootstrap runbook.
 6. Show the Live RPC Lab and the generated `collect` command.
-7. Export a report and diff.
-8. Open the CLI transcript and submission brief.
-9. Explain the generated circular rebalance dry-run payload.
-10. Optional: run `collect` against a local FNN node.
+7. Run `fiber-scope gate` against the healthy route-ready fixture.
+8. Export a report and diff.
+9. Open the CLI transcript and submission brief.
+10. Explain the generated circular rebalance dry-run payload.
+11. Optional: run `collect` against a local FNN node.
 
 ## Submission Checklist
 

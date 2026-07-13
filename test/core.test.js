@@ -3,9 +3,11 @@ import fs from 'node:fs';
 import { test } from 'node:test';
 import {
   diffSnapshots,
+  evaluateReadinessGate,
   formatAmount,
   inspectSnapshot,
   parseAmount,
+  renderConsoleGate,
   renderMarkdownDiff,
   renderMarkdownReport,
   toRpcHex
@@ -83,4 +85,29 @@ test('renders a markdown snapshot diff', () => {
   assert.match(report, /FiberScope Snapshot Diff/);
   assert.match(report, /FS-PEER-NONE-001/);
   assert.match(report, /Graph channels/);
+});
+
+test('passes the strict readiness gate for a healthy dry-run snapshot', () => {
+  const inspection = inspectSnapshot(fixture('healthy-ready'));
+  const gate = evaluateReadinessGate(inspection);
+
+  assert.equal(gate.passed, true);
+  assert.equal(gate.verdict, 'pass');
+  assert.equal(gate.failures.length, 0);
+  assert.equal(gate.policy.minStatus, 'ready');
+  assert.match(renderConsoleGate(gate), /FiberScope Gate: PASS/);
+});
+
+test('fails the readiness gate for degraded route and liquidity state', () => {
+  const inspection = inspectSnapshot(fixture('unbalanced-route-failure'));
+  const gate = evaluateReadinessGate(inspection);
+  const failureIds = gate.failures.map((failure) => failure.id);
+
+  assert.equal(gate.passed, false);
+  assert.ok(failureIds.includes('FS-GATE-SCORE-001'));
+  assert.ok(failureIds.includes('FS-GATE-STATUS-001'));
+  assert.ok(failureIds.includes('FS-GATE-SEVERITY-001'));
+  assert.ok(failureIds.includes('FS-GATE-ROUTE-001'));
+  assert.ok(gate.blockingFindings.some((finding) => finding.id === 'FS-ROUTE-DRYRUN-FAILED-001'));
+  assert.match(renderConsoleGate(gate), /FiberScope Gate: FAIL/);
 });

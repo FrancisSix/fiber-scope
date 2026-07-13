@@ -11,7 +11,9 @@ import {
 } from './presets.js';
 import {
   diffSnapshots,
+  evaluateReadinessGate,
   inspectSnapshot,
+  renderConsoleGate,
   renderConsoleSummary,
   renderConsoleDiff,
   renderMarkdownDiff,
@@ -57,6 +59,25 @@ async function main() {
     } else {
       console.log(report);
     }
+    return;
+  }
+
+  if (command === 'gate') {
+    const snapshot = readSnapshot(requiredOption(options.snapshot, '--snapshot'));
+    const inspection = inspectSnapshot(snapshot, { amount: options.amount });
+    const gate = evaluateReadinessGate(inspection, {
+      minScore: options.minScore,
+      minStatus: options.minStatus ?? options.status,
+      maxSeverity: options.maxSeverity,
+      requireRouteReady: !options.noRouteReady,
+      requiredRpc: options.requiredRpc
+    });
+    if (options.json) {
+      console.log(JSON.stringify(gate, null, 2));
+    } else {
+      console.log(renderConsoleGate(gate));
+    }
+    process.exitCode = gate.passed ? 0 : 2;
     return;
   }
 
@@ -193,6 +214,7 @@ Usage:
   fiber-scope inspect --snapshot fixtures/unbalanced-route-failure.json
   fiber-scope inspect --snapshot fixtures/unbalanced-route-failure.json --json
   fiber-scope report --snapshot fixtures/unbalanced-route-failure.json --out reports/fiber-report.md
+  fiber-scope gate --snapshot fixtures/healthy-ready.json
   fiber-scope diff --before fixtures/no-peers-no-graph.json --after fixtures/unbalanced-route-failure.json
   fiber-scope presets --network testnet
   fiber-scope presets --node fiber-testnet-public-bottle --rpc http://127.0.0.1:8227
@@ -205,6 +227,13 @@ Useful collect flags:
   --amount <hex>             amount for route dry run, for example 0x2540be400
   --target-pubkey <pubkey>   target for send_payment dry_run
   --self-rebalance           dry-run a circular payment to this node pubkey
+
+Useful gate flags:
+  --min-score <n>             minimum readiness score, default 90
+  --min-status <status>       blocked, degraded, or ready; default ready
+  --max-severity <severity>   info, warning, or critical; default info
+  --no-route-ready            do not require a successful route dry run
+  --required-rpc <methods>    comma-separated required RPC evidence
 
 Useful preset flags:
   --network <mainnet|testnet>  Filter public node presets

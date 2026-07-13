@@ -18,6 +18,7 @@ Fiber exposes the right primitives, but operators still have to manually correla
 
 - Dashboard: `npm run dashboard`, then open `http://127.0.0.1:4173/`
 - Live collector: dashboard Live RPC Lab or `npm run fiber-scope -- collect --rpc http://127.0.0.1:8227 --out snapshots/live-node.json --self-rebalance`
+- Readiness gate: `npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json`
 - CLI transcript: [docs/demo-transcript.md](docs/demo-transcript.md)
 - Diagnostic report: [docs/demo-report.md](docs/demo-report.md)
 - Snapshot diff: [docs/demo-diff.md](docs/demo-diff.md)
@@ -37,16 +38,18 @@ Suggested reviewer path:
 
 1. Open the dashboard.
 2. Use the Live RPC Lab if a local FNN RPC endpoint is available.
-3. Look at route state, liquidity map, findings, and rebalance probe.
-4. Open Snapshot Diff to see fresh-node -> route-probed-node progress.
-5. Open Public Node Presets to see generated `connect_peer` and `open_channel` payloads.
-6. Read [docs/demo-transcript.md](docs/demo-transcript.md) for the CLI version.
+3. Check the Readiness Gate to see the automation decision and blockers.
+4. Look at route state, liquidity map, findings, and rebalance probe.
+5. Open Snapshot Diff to see fresh-node -> route-probed-node progress.
+6. Open Public Node Presets to see generated `connect_peer` and `open_channel` payloads.
+7. Read [docs/demo-transcript.md](docs/demo-transcript.md) for the CLI version.
 
 ## Implemented Features
 
 - Fixture-backed Fiber snapshot inspector.
 - Live FNN RPC collector with bounded graph pagination.
 - Dashboard live-collector proxy for local RPC endpoints.
+- Payment-readiness gate with non-zero exit codes for automation.
 - Stable diagnostic fingerprints.
 - Circular rebalance candidate generation using `allow_self_payment: true`.
 - Before/after snapshot diff.

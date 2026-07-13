@@ -109,6 +109,22 @@ Rebalance dry-run candidate:
 }
 ```
 
+## Run a payment-readiness gate
+
+```bash
+npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json
+```
+
+```text
+FiberScope Gate: PASS
+Node: ready-router 0.8.0 (ready, 100/100)
+Route: ready
+Policy: status>=ready score>=90 max_severity=info route_ready=true
+Required RPC: node_info, list_peers, list_channels, graph_nodes, graph_channels, send_payment_dry_run
+
+Node satisfies the payment-readiness gate.
+```
+
 ## Compare fresh node against route-probed node
 
 ```bash

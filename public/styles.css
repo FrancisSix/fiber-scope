@@ -516,6 +516,7 @@ button:hover {
   grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.12fr) minmax(310px, 0.9fr);
   grid-template-areas:
     "findings liquidity command"
+    "findings liquidity gate"
     "findings liquidity diff"
     "findings liquidity presets"
     "findings liquidity rpc";
@@ -538,6 +539,10 @@ button:hover {
 
 .command-panel {
   grid-area: command;
+}
+
+.gate-panel {
+  grid-area: gate;
 }
 
 .diff-panel {
@@ -856,6 +861,91 @@ button:hover {
   border-color: rgba(244, 183, 64, 0.25);
 }
 
+.gate-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 92, 119, 0.28);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, rgba(255, 92, 119, 0.11), transparent 62%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.gate-summary.pass {
+  border-color: rgba(74, 222, 128, 0.28);
+  background:
+    linear-gradient(90deg, rgba(74, 222, 128, 0.11), transparent 62%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.gate-summary strong {
+  display: block;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.gate-summary span,
+.gate-failure p {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.38;
+}
+
+.gate-score {
+  min-width: 54px;
+  border-radius: var(--radius);
+  padding: 10px;
+  text-align: center;
+  color: var(--red);
+  background: rgba(255, 92, 119, 0.11);
+  border: 1px solid rgba(255, 92, 119, 0.24);
+  font-weight: 900;
+}
+
+.gate-summary.pass .gate-score {
+  color: var(--green);
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.24);
+}
+
+.gate-failures {
+  display: grid;
+  gap: 8px;
+}
+
+.gate-failure {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--red);
+  border-radius: var(--radius);
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.gate-failure.pass {
+  border-left-color: var(--green);
+}
+
+.gate-failure code {
+  color: var(--steel);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.gate-failure strong {
+  overflow-wrap: anywhere;
+}
+
+.gate-failure p {
+  margin: 0;
+}
+
 .diff-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1061,6 +1151,7 @@ button:hover {
     grid-template-areas:
       "findings findings"
       "liquidity command"
+      "liquidity gate"
       "liquidity diff"
       "liquidity presets"
       "rpc rpc";
@@ -1108,6 +1199,7 @@ button:hover {
   .findings-panel,
   .liquidity-panel,
   .command-panel,
+  .gate-panel,
   .diff-panel,
   .presets-panel,
   .rpc-panel {

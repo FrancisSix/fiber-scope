@@ -38,6 +38,7 @@ The live collector never stores Biscuit tokens in generated artifacts. The dashb
 ```bash
 npm run fiber-scope -- fixtures
 npm run fiber-scope -- inspect --snapshot fixtures/unbalanced-route-failure.json
+npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json
 npm run fiber-scope -- report --snapshot fixtures/unbalanced-route-failure.json --out reports/demo-report.md
 npm run fiber-scope -- diff --before fixtures/no-peers-no-graph.json --after fixtures/unbalanced-route-failure.json
 npm run fiber-scope -- presets --network testnet
@@ -107,6 +108,8 @@ The prototype is infrastructure-focused: it helps node operators, public node pr
 The live collector follows `last_cursor` for `graph_nodes` and `graph_channels` with bounded pagination. Use `--graph-limit` to control page size and `--graph-pages` to cap collection time.
 
 The diff command compares two snapshots and highlights peer, graph, liquidity, route, and finding changes. It is useful for showing a node before and after connecting to public nodes or waiting for gossip catch-up.
+
+The gate command turns a snapshot into an automation-friendly payment-readiness decision. By default it requires score >= 90, status `ready`, a successful route dry run, no warning/critical findings, and required RPC evidence. It exits with code `2` when the gate fails, making it useful for CI, cron checks, and post-bootstrap scripts.
 
 Public-node presets generate v0.8 pubkey-based `connect_peer`, `open_channel`, and `list_channels` payloads for the documented Fiber mainnet/testnet public nodes. The generated follow-up command runs FiberScope collection after the node reaches `ChannelReady`.
 
