@@ -10,14 +10,17 @@ import {
   renderPublicNodeRunbook
 } from './presets.js';
 import {
+  buildRemediationRunbook,
   diffSnapshots,
   evaluateReadinessGate,
   inspectSnapshot,
   renderConsoleGate,
+  renderConsoleRunbook,
   renderConsoleSummary,
   renderConsoleDiff,
   renderMarkdownDiff,
-  renderMarkdownReport
+  renderMarkdownReport,
+  renderMarkdownRunbook
 } from './core.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,6 +81,39 @@ async function main() {
       console.log(renderConsoleGate(gate));
     }
     process.exitCode = gate.passed ? 0 : 2;
+    return;
+  }
+
+  if (command === 'runbook') {
+    const snapshotPath = requiredOption(options.snapshot, '--snapshot');
+    const snapshot = readSnapshot(snapshotPath);
+    const inspection = inspectSnapshot(snapshot, { amount: options.amount });
+    const bootstrapName = options.bootstrapNode ?? options.node;
+    let bootstrapNode = null;
+    if (bootstrapName) {
+      const network = options.network ?? snapshot.meta?.network ?? 'all';
+      const preset = findPublicNodePreset(bootstrapName, network);
+      if (!preset) throw new Error(`Unknown public node preset: ${bootstrapName}`);
+      bootstrapNode = {
+        name: preset.name,
+        network: preset.network,
+        pubkey: preset.pubkey,
+        fundingAmount: options.fundingAmount ?? preset.openChannelFundingAmount
+      };
+    }
+    const runbook = buildRemediationRunbook(inspection, {
+      rpcUrl: options.rpc,
+      bootstrapNode
+    });
+    if (options.json) {
+      console.log(JSON.stringify(runbook, null, 2));
+    } else if (options.out) {
+      ensureParent(options.out);
+      fs.writeFileSync(options.out, renderMarkdownRunbook(runbook));
+      console.log(`Wrote ${options.out}`);
+    } else {
+      console.log(renderConsoleRunbook(runbook));
+    }
     return;
   }
 
@@ -215,6 +251,8 @@ Usage:
   fiber-scope inspect --snapshot fixtures/unbalanced-route-failure.json --json
   fiber-scope report --snapshot fixtures/unbalanced-route-failure.json --out reports/fiber-report.md
   fiber-scope gate --snapshot fixtures/healthy-ready.json
+  fiber-scope runbook --snapshot fixtures/unbalanced-route-failure.json --rpc http://127.0.0.1:8227
+  fiber-scope runbook --snapshot fixtures/no-peers-no-graph.json --bootstrap-node fiber-testnet-public-bottle
   fiber-scope diff --before fixtures/no-peers-no-graph.json --after fixtures/unbalanced-route-failure.json
   fiber-scope presets --network testnet
   fiber-scope presets --node fiber-testnet-public-bottle --rpc http://127.0.0.1:8227
@@ -234,6 +272,13 @@ Useful gate flags:
   --max-severity <severity>   info, warning, or critical; default info
   --no-route-ready            do not require a successful route dry run
   --required-rpc <methods>    comma-separated required RPC evidence
+
+Useful runbook flags:
+  --rpc <url>                  RPC URL used in generated requests and commands
+  --bootstrap-node <preset>    Public-node preset for connect/open recovery steps
+  --funding-amount <amount>    Override bootstrap channel funding amount
+  --out <file>                 Export the runbook as Markdown
+  --json                       Emit the structured review-only plan
 
 Useful preset flags:
   --network <mainnet|testnet>  Filter public node presets

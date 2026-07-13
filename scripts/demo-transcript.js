@@ -27,6 +27,11 @@ const commands = [
     args: ['./src/cli.js', 'gate', '--snapshot', 'fixtures/healthy-ready.json']
   },
   {
+    title: 'Generate an operator remediation runbook',
+    command: 'npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json --rpc http://127.0.0.1:8227',
+    args: ['./src/cli.js', 'runbook', '--snapshot', 'fixtures/unbalanced-route-failure.json', '--rpc', 'http://127.0.0.1:8227']
+  },
+  {
     title: 'Compare fresh node against route-probed node',
     command: 'npm run fiber-scope -- diff --before fixtures/no-peers-no-graph.json --after fixtures/unbalanced-route-failure.json',
     args: ['./src/cli.js', 'diff', '--before', 'fixtures/no-peers-no-graph.json', '--after', 'fixtures/unbalanced-route-failure.json']

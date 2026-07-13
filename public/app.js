@@ -1,9 +1,11 @@
 import {
+  buildRemediationRunbook,
   diffSnapshots,
   evaluateReadinessGate,
   formatAmount,
   inspectSnapshot,
   renderMarkdownReport,
+  renderMarkdownRunbook,
   shortPubkey
 } from '../src/core.js';
 import {
@@ -15,7 +17,9 @@ const state = {
   baselineSnapshot: null,
   snapshot: null,
   inspection: null,
-  diff: null
+  diff: null,
+  runbook: null,
+  selectedRunbookStepId: null
 };
 
 const elements = {
@@ -23,7 +27,12 @@ const elements = {
   baselineFile: document.querySelector('#baseline-file'),
   amount: document.querySelector('#amount-input'),
   download: document.querySelector('#download-report'),
+  openLive: document.querySelector('#open-live'),
+  closeLive: document.querySelector('#close-live'),
+  liveDialog: document.querySelector('#live-dialog'),
   liveStatus: document.querySelector('#live-status'),
+  networkName: document.querySelector('#network-name'),
+  snapshotLabel: document.querySelector('#snapshot-label'),
   liveRpcUrl: document.querySelector('#live-rpc-url'),
   liveAuthToken: document.querySelector('#live-auth-token'),
   liveTargetPubkey: document.querySelector('#live-target-pubkey'),
@@ -41,6 +50,9 @@ const elements = {
   routeMethod: document.querySelector('#route-method'),
   routeVerdict: document.querySelector('#route-verdict'),
   routeEvidence: document.querySelector('#route-evidence'),
+  topologyCanvas: document.querySelector('#topology-canvas'),
+  topologyNodeCount: document.querySelector('#topology-node-count'),
+  topologyChannelCount: document.querySelector('#topology-channel-count'),
   findingCount: document.querySelector('#finding-count'),
   findings: document.querySelector('#findings-list'),
   channelCount: document.querySelector('#channel-count'),
@@ -51,6 +63,16 @@ const elements = {
   gateCount: document.querySelector('#gate-count'),
   gateSummary: document.querySelector('#gate-summary'),
   gateFailures: document.querySelector('#gate-failures'),
+  runbookCount: document.querySelector('#runbook-count'),
+  runbookSummary: document.querySelector('#runbook-summary'),
+  runbookSteps: document.querySelector('#runbook-steps'),
+  runbookStepType: document.querySelector('#runbook-step-type'),
+  runbookStepTitle: document.querySelector('#runbook-step-title'),
+  runbookPreview: document.querySelector('#runbook-preview'),
+  runbookSuccess: document.querySelector('#runbook-success'),
+  copyRunbook: document.querySelector('#copy-runbook'),
+  copyRunbookStep: document.querySelector('#copy-runbook-step'),
+  exportRunbook: document.querySelector('#export-runbook'),
   diffCount: document.querySelector('#diff-count'),
   diffSummary: document.querySelector('#diff-summary'),
   diffMetrics: document.querySelector('#diff-metrics'),
@@ -66,6 +88,7 @@ const elements = {
 
 const publicNodePresets = listPublicNodePresets();
 let activePresetName = publicNodePresets.find((preset) => preset.network === 'testnet')?.name ?? publicNodePresets[0]?.name;
+let topologyResizeObserver;
 
 boot();
 
@@ -77,10 +100,16 @@ async function boot() {
   state.baselineSnapshot = await baselineResponse.json();
   state.snapshot = await response.json();
   wireEvents();
+  observeTopology();
   render();
 }
 
 function wireEvents() {
+  for (const link of document.querySelectorAll('.rail-link')) {
+    link.addEventListener('click', () => setActiveRailLink(link.getAttribute('href')));
+  }
+  window.addEventListener('hashchange', () => setActiveRailLink(window.location.hash));
+  setActiveRailLink(window.location.hash);
   elements.amount.addEventListener('input', () => {
     renderLiveCommand();
     render();
@@ -107,11 +136,31 @@ function wireEvents() {
     link.click();
     URL.revokeObjectURL(link.href);
   });
+  elements.openLive.addEventListener('click', () => {
+    elements.liveDialog.showModal();
+  });
+  elements.closeLive.addEventListener('click', () => {
+    elements.liveDialog.close();
+  });
+  elements.liveDialog.addEventListener('click', (event) => {
+    if (event.target === elements.liveDialog) elements.liveDialog.close();
+  });
   elements.copyRebalance.addEventListener('click', () => {
     copyText(elements.rebalance.textContent, 'Rebalance probe copied');
   });
   elements.copyPreset.addEventListener('click', () => {
     copyText(elements.presetRunbook.textContent, 'Public-node runbook copied');
+  });
+  elements.copyRunbook.addEventListener('click', () => {
+    if (!state.runbook) return;
+    copyText(renderMarkdownRunbook(state.runbook), 'Operator runbook copied');
+  });
+  elements.copyRunbookStep.addEventListener('click', () => {
+    copyText(elements.runbookPreview.textContent, 'Runbook step copied');
+  });
+  elements.exportRunbook.addEventListener('click', () => {
+    if (!state.runbook) return;
+    downloadText('fiber-scope-runbook.md', renderMarkdownRunbook(state.runbook), 'text/markdown');
   });
   elements.collectLive.addEventListener('click', collectLiveSnapshot);
 
@@ -123,9 +172,19 @@ function wireEvents() {
     elements.liveSelfRebalance
   ]) {
     input.addEventListener('input', renderLiveCommand);
-    input.addEventListener('change', renderLiveCommand);
+    input.addEventListener('change', () => {
+      renderLiveCommand();
+      if (input === elements.liveRpcUrl && state.inspection) renderRunbook(state.inspection);
+    });
   }
   renderLiveCommand();
+}
+
+function setActiveRailLink(hash) {
+  const target = hash || '#overview';
+  for (const link of document.querySelectorAll('.rail-link')) {
+    link.classList.toggle('active', link.getAttribute('href') === target);
+  }
 }
 
 function render() {
@@ -140,6 +199,8 @@ function render() {
   const ringColor = statusColor(inspection.status);
 
   document.body.dataset.status = inspection.status;
+  elements.networkName.textContent = inspection.network ?? 'network unknown';
+  elements.snapshotLabel.textContent = inspection.source;
   elements.status.textContent = inspection.status;
   elements.status.className = `status-pill ${inspection.status}`;
   elements.score.textContent = inspection.score;
@@ -151,10 +212,12 @@ function render() {
   renderNodeFacts(inspection);
   renderMetrics(inspection);
   renderRoute(inspection);
+  renderTopology(state.snapshot, inspection);
   renderFindings(inspection);
   renderChannels(inspection);
   renderRebalance(inspection);
   renderGate(inspection);
+  renderRunbook(inspection);
   renderDiff(state.diff);
   renderPresets();
   renderRpc(inspection);
@@ -189,6 +252,7 @@ async function collectLiveSnapshot() {
     state.snapshot = body.snapshot;
     elements.liveStatus.textContent = 'live snapshot';
     render();
+    elements.liveDialog.close();
     showToast('Live snapshot collected');
   } catch (error) {
     elements.liveStatus.textContent = 'collect failed';
@@ -261,14 +325,14 @@ function renderNodeFacts(inspection) {
 
 function renderMetrics(inspection) {
   const metrics = [
-    ['Peers', inspection.metrics.peerCount, 'connected', '#28d7d2'],
-    ['Channels', `${inspection.metrics.activeChannelCount}/${inspection.metrics.channelCount}`, 'ready / total', '#4ade80'],
-    ['Graph', inspection.metrics.graphChannelCount, `${inspection.metrics.graphNodeCount} nodes`, '#a78bfa'],
-    ['Outbound', formatAmount(inspection.metrics.outboundCapacity), 'local liquidity', '#f4b740'],
-    ['Inbound', formatAmount(inspection.metrics.inboundCapacity), 'remote liquidity', '#ff5c77']
+    ['Peers', inspection.metrics.peerCount, 'connected'],
+    ['Channels', `${inspection.metrics.activeChannelCount}/${inspection.metrics.channelCount}`, 'ready / total'],
+    ['Graph', inspection.metrics.graphChannelCount, `${inspection.metrics.graphNodeCount} nodes`],
+    ['Outbound', formatAmount(inspection.metrics.outboundCapacity), 'local liquidity'],
+    ['Inbound', formatAmount(inspection.metrics.inboundCapacity), 'remote liquidity']
   ];
-  elements.metrics.innerHTML = metrics.map(([label, value, hint, accent]) => `
-    <div class="metric" style="--accent:${accent}">
+  elements.metrics.innerHTML = metrics.map(([label, value, hint]) => `
+    <div class="metric metric-${label.toLowerCase()}">
       <span>${escapeHtml(label)}</span>
       <strong>${escapeHtml(String(value))}</strong>
       <small>${escapeHtml(hint)}</small>
@@ -282,6 +346,215 @@ function renderRoute(inspection) {
   elements.routeVerdict.textContent = routeLabel(route.status);
   elements.routeVerdict.className = `route-verdict ${route.status}`;
   elements.routeEvidence.textContent = route.evidence ?? route.reason ?? 'No route evidence captured.';
+}
+
+function observeTopology() {
+  if (!('ResizeObserver' in window) || !elements.topologyCanvas) return;
+  topologyResizeObserver = new ResizeObserver(() => {
+    if (!state.snapshot || !state.inspection) return;
+    requestAnimationFrame(() => renderTopology(state.snapshot, state.inspection));
+  });
+  topologyResizeObserver.observe(elements.topologyCanvas.parentElement);
+}
+
+function renderTopology(snapshot, inspection) {
+  const canvas = elements.topologyCanvas;
+  if (!canvas) return;
+  const container = canvas.parentElement;
+  const width = Math.max(320, Math.floor(container.clientWidth));
+  const height = Math.max(230, Math.floor(container.clientHeight));
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(width * pixelRatio);
+  canvas.height = Math.floor(height * pixelRatio);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.setAttribute('aria-label', `${inspection.metrics.graphNodeCount} Fiber nodes and ${inspection.metrics.graphChannelCount} public channels`);
+
+  const context = canvas.getContext('2d');
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.clearRect(0, 0, width, height);
+  drawTopologyGrid(context, width, height);
+
+  const graphNodes = snapshotResultList(snapshot, 'graph_nodes', 'nodes');
+  const graphChannels = snapshotResultList(snapshot, 'graph_channels', 'channels');
+  const ownPubkey = inspection.metrics.pubkey;
+  const targetPubkey = inspection.intent.targetPubkey;
+  const visible = selectTopology(graphNodes, graphChannels, ownPubkey, targetPubkey);
+  const positions = topologyPositions(visible.nodes, ownPubkey, targetPubkey, width, height);
+  const routedChannels = new Set(
+    (inspection.route.routes ?? [])
+      .flatMap((route) => route.nodes ?? [])
+      .map((node) => node.channel_outpoint)
+      .filter(Boolean)
+  );
+
+  if (ownPubkey && targetPubkey && positions.has(ownPubkey) && positions.has(targetPubkey)) {
+    drawIntentPath(context, positions.get(ownPubkey), positions.get(targetPubkey), inspection.route.status);
+  }
+
+  for (const channel of visible.channels) {
+    const start = positions.get(channel.node1);
+    const end = positions.get(channel.node2);
+    if (!start || !end) continue;
+    drawChannel(context, start, end, routedChannels.has(channel.channel_outpoint));
+  }
+
+  for (const node of visible.nodes) {
+    const position = positions.get(node.pubkey);
+    if (!position) continue;
+    const role = node.pubkey === ownPubkey ? 'self' : node.pubkey === targetPubkey ? 'target' : 'peer';
+    drawTopologyNode(context, position, node, role);
+  }
+
+  elements.topologyNodeCount.textContent = inspection.metrics.graphNodeCount;
+  elements.topologyChannelCount.textContent = inspection.metrics.graphChannelCount;
+}
+
+function snapshotResultList(snapshot, method, field) {
+  const entry = snapshot?.rpc?.[method];
+  if (!entry || entry.error || entry.ok === false) return [];
+  const result = Object.hasOwn(entry, 'result') ? entry.result : entry;
+  if (Array.isArray(result)) return result;
+  return Array.isArray(result?.[field]) ? result[field] : [];
+}
+
+function selectTopology(graphNodes, graphChannels, ownPubkey, targetPubkey) {
+  const nodeByPubkey = new Map();
+  for (const node of graphNodes) {
+    if (node?.pubkey) nodeByPubkey.set(node.pubkey, node);
+  }
+  for (const channel of graphChannels) {
+    for (const pubkey of [channel?.node1, channel?.node2]) {
+      if (pubkey && !nodeByPubkey.has(pubkey)) nodeByPubkey.set(pubkey, { pubkey });
+    }
+  }
+  if (ownPubkey && !nodeByPubkey.has(ownPubkey)) nodeByPubkey.set(ownPubkey, { pubkey: ownPubkey, node_name: 'This node' });
+  if (targetPubkey && !nodeByPubkey.has(targetPubkey)) nodeByPubkey.set(targetPubkey, { pubkey: targetPubkey, node_name: 'Payment target' });
+
+  const prioritizedChannels = [
+    ...graphChannels.filter((channel) => channel.node1 === ownPubkey || channel.node2 === ownPubkey),
+    ...graphChannels.filter((channel) => channel.node1 !== ownPubkey && channel.node2 !== ownPubkey)
+  ].slice(0, 12);
+  const selectedKeys = new Set([ownPubkey, targetPubkey].filter(Boolean));
+  for (const channel of prioritizedChannels) {
+    if (selectedKeys.size >= 10) break;
+    if (channel.node1) selectedKeys.add(channel.node1);
+    if (channel.node2) selectedKeys.add(channel.node2);
+  }
+  for (const pubkey of nodeByPubkey.keys()) {
+    if (selectedKeys.size >= 10) break;
+    selectedKeys.add(pubkey);
+  }
+
+  return {
+    nodes: [...selectedKeys].map((pubkey) => nodeByPubkey.get(pubkey) ?? { pubkey }),
+    channels: prioritizedChannels.filter((channel) => selectedKeys.has(channel.node1) && selectedKeys.has(channel.node2))
+  };
+}
+
+function topologyPositions(nodes, ownPubkey, targetPubkey, width, height) {
+  const positions = new Map();
+  const centerY = height * 0.5;
+  if (ownPubkey) positions.set(ownPubkey, { x: width * 0.16, y: centerY });
+  if (targetPubkey) positions.set(targetPubkey, { x: width * 0.84, y: centerY });
+
+  const peers = nodes.filter((node) => node.pubkey !== ownPubkey && node.pubkey !== targetPubkey);
+  const radiusX = Math.min(width * 0.23, 190);
+  const radiusY = Math.min(height * 0.31, 84);
+  peers.forEach((node, index) => {
+    const angle = peers.length === 1
+      ? 0
+      : (-Math.PI / 2) + (index * Math.PI * 2) / peers.length;
+    positions.set(node.pubkey, {
+      x: width * 0.51 + Math.cos(angle) * radiusX,
+      y: centerY + Math.sin(angle) * radiusY
+    });
+  });
+  return positions;
+}
+
+function drawTopologyGrid(context, width, height) {
+  context.save();
+  context.strokeStyle = 'rgba(127, 145, 154, 0.08)';
+  context.lineWidth = 1;
+  for (let x = 20.5; x < width; x += 40) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x, height);
+    context.stroke();
+  }
+  for (let y = 20.5; y < height; y += 40) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(width, y);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawIntentPath(context, start, end, status) {
+  const color = status === 'ready' ? '#4ee0a1' : status === 'failed' ? '#ff6b6b' : '#f0b95d';
+  context.save();
+  context.strokeStyle = color;
+  context.globalAlpha = 0.48;
+  context.lineWidth = 1.5;
+  context.setLineDash([7, 7]);
+  context.beginPath();
+  context.moveTo(start.x, start.y);
+  context.bezierCurveTo(start.x + 90, start.y - 70, end.x - 90, end.y - 70, end.x, end.y);
+  context.stroke();
+  context.restore();
+}
+
+function drawChannel(context, start, end, routed) {
+  context.save();
+  context.strokeStyle = routed ? '#4ee0a1' : '#4ecdc4';
+  context.globalAlpha = routed ? 0.88 : 0.38;
+  context.lineWidth = routed ? 3 : 1.5;
+  context.beginPath();
+  context.moveTo(start.x, start.y);
+  context.lineTo(end.x, end.y);
+  context.stroke();
+
+  const midpointX = (start.x + end.x) / 2;
+  const midpointY = (start.y + end.y) / 2;
+  context.fillStyle = routed ? '#4ee0a1' : '#8fa7ae';
+  context.globalAlpha = routed ? 1 : 0.72;
+  context.beginPath();
+  context.arc(midpointX, midpointY, routed ? 3.5 : 2.5, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function drawTopologyNode(context, position, node, role) {
+  const colors = {
+    self: '#4ecdc4',
+    peer: '#d5e0e2',
+    target: '#f0b95d'
+  };
+  const color = colors[role];
+  const radius = role === 'self' ? 9 : role === 'target' ? 8 : 6;
+  context.save();
+  context.fillStyle = color;
+  context.globalAlpha = 0.12;
+  context.beginPath();
+  context.arc(position.x, position.y, radius + 12, 0, Math.PI * 2);
+  context.fill();
+  context.globalAlpha = 1;
+  context.fillStyle = '#091013';
+  context.strokeStyle = color;
+  context.lineWidth = role === 'self' ? 3 : 2;
+  context.beginPath();
+  context.arc(position.x, position.y, radius, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+
+  const name = node.node_name ?? node.nodeName ?? (role === 'self' ? 'THIS NODE' : role === 'target' ? 'TARGET' : shortPubkey(node.pubkey));
+  context.font = '600 10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  context.textAlign = 'center';
+  context.fillStyle = role === 'peer' ? '#8fa1a8' : color;
+  context.fillText(String(name).slice(0, 20), position.x, position.y + radius + 18);
+  context.restore();
 }
 
 function renderFindings(inspection) {
@@ -358,6 +631,89 @@ function renderGate(inspection) {
   `;
 }
 
+function renderRunbook(inspection) {
+  let activePreset = publicNodePresets.find((preset) => preset.name === activePresetName) ?? publicNodePresets[0];
+  if (inspection.network && activePreset?.network !== inspection.network) {
+    activePreset = publicNodePresets.find((preset) => preset.network === inspection.network) ?? activePreset;
+    activePresetName = activePreset?.name;
+  }
+  state.runbook = buildRemediationRunbook(inspection, {
+    rpcUrl: elements.liveRpcUrl.value.trim() || 'http://127.0.0.1:8227',
+    bootstrapNode: activePreset ? {
+      name: activePreset.name,
+      network: activePreset.network,
+      pubkey: activePreset.pubkey,
+      fundingAmount: activePreset.openChannelFundingAmount
+    } : null
+  });
+
+  const runbook = state.runbook;
+  const selectedExists = runbook.steps.some((step) => step.id === state.selectedRunbookStepId);
+  if (!selectedExists) state.selectedRunbookStepId = runbook.steps[0]?.id ?? null;
+  const selected = runbook.steps.find((step) => step.id === state.selectedRunbookStepId) ?? runbook.steps[0];
+
+  elements.runbookCount.textContent = `${runbook.steps.length} ordered steps`;
+  elements.runbookSummary.innerHTML = `
+    <div class="runbook-verdict ${escapeHtml(runbook.verdict)}">
+      <span>${escapeHtml(runbook.verdict.replace('_', ' '))}</span>
+      <strong>${escapeHtml(runbook.summary)}</strong>
+    </div>
+    <div class="runbook-stats">
+      <div><strong>${runbook.counts.dryRun}</strong><span>dry runs</span></div>
+      <div><strong>${runbook.counts.approvalRequired}</strong><span>write approvals</span></div>
+      <div><strong>${runbook.counts.readOnly}</strong><span>read only</span></div>
+      <div><strong>${runbook.requiredScopes.length}</strong><span>scopes</span></div>
+    </div>
+    <p>${escapeHtml(runbook.safetyNotice)}</p>
+  `;
+
+  elements.runbookSteps.innerHTML = runbook.steps.map((step) => `
+    <button class="runbook-step ${step.id === selected?.id ? 'active' : ''}" data-runbook-step="${escapeHtml(step.id)}" type="button">
+      <span class="runbook-sequence">${String(step.sequence).padStart(2, '0')}</span>
+      <span class="runbook-step-copy">
+        <small>${escapeHtml(step.phase)} / ${escapeHtml(step.method ?? step.execution)}</small>
+        <strong>${escapeHtml(step.title)}</strong>
+        <em>${escapeHtml(step.triggeredBy.join(', ') || 'final validation')}</em>
+      </span>
+      <span class="runbook-safety ${escapeHtml(step.safety)}">${escapeHtml(step.safetyLabel)}</span>
+    </button>
+  `).join('');
+
+  for (const button of elements.runbookSteps.querySelectorAll('[data-runbook-step]')) {
+    button.addEventListener('click', () => {
+      state.selectedRunbookStepId = button.dataset.runbookStep;
+      renderRunbook(inspection);
+    });
+  }
+
+  renderRunbookInspector(selected);
+}
+
+function renderRunbookInspector(step) {
+  if (!step) {
+    elements.runbookStepType.textContent = 'no step';
+    elements.runbookStepTitle.textContent = 'No runbook steps available';
+    elements.runbookPreview.textContent = '';
+    elements.runbookSuccess.innerHTML = '';
+    return;
+  }
+
+  elements.runbookStepType.textContent = `${step.id} / ${step.scopeLabel}`;
+  elements.runbookStepTitle.textContent = step.title;
+  elements.runbookPreview.textContent = runbookStepPreview(step);
+  elements.runbookSuccess.innerHTML = `
+    <span>Required outcome</span>
+    <strong>${escapeHtml(step.successCriteria)}</strong>
+  `;
+}
+
+function runbookStepPreview(step) {
+  if (step.request) {
+    return `${JSON.stringify(step.request, null, 2)}\n\n# curl\n${step.curl}`;
+  }
+  return step.command ?? step.instruction ?? step.rationale;
+}
+
 function renderDiff(diff) {
   if (!diff) {
     elements.diffCount.textContent = 'no baseline';
@@ -418,6 +774,7 @@ function renderPresets() {
     button.addEventListener('click', () => {
       activePresetName = button.dataset.preset;
       renderPresets();
+      if (state.inspection) renderRunbook(state.inspection);
     });
   }
 
@@ -470,6 +827,15 @@ async function copyText(text, message) {
     textArea.remove();
   }
   showToast(message);
+}
+
+function downloadText(filename, contents, type) {
+  const blob = new Blob([contents], { type });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function showToast(message) {

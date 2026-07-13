@@ -1,6 +1,6 @@
 # FiberScope
 
-FiberScope is a hackathon prototype for Fiber Network operators. It turns FNN RPC snapshots into an actionable route-readiness report: peer health, channel state, visible graph, dry-run payment failures, Biscuit scope issues, and circular rebalance candidates.
+FiberScope is a hackathon prototype for Fiber Network operators. It turns FNN RPC snapshots into route-readiness evidence and an ordered remediation runbook: peer health, channel state, visible graph, dry-run payment failures, Biscuit scope issues, and circular rebalance candidates.
 
 The gap: Fiber already exposes the primitives needed to operate a node, but the operator has to stitch together `node_info`, `list_peers`, `list_channels`, `graph_channels`, `send_payment` dry runs, and the rebalancing docs by hand. FiberScope makes that failure path reviewable in one CLI and dashboard.
 
@@ -25,6 +25,8 @@ FiberScope has two modes:
 - Fixture mode: deterministic snapshots for judges without a local Fiber node.
 - Live mode: the dashboard posts to the local `/api/collect` proxy, which collects from an FNN RPC endpoint and runs the same analyzer.
 
+The topology-led dashboard renders the observed `graph_nodes` and `graph_channels` state, highlights the local node and payment target, and attaches route dry-run evidence directly to that graph. RPC credentials and collection controls stay in a separate connection dialog so the operator decision remains the primary view.
+
 Live dashboard collection:
 
 1. Run an FNN RPC endpoint locally, for example `http://127.0.0.1:8227`.
@@ -39,6 +41,8 @@ The live collector never stores Biscuit tokens in generated artifacts. The dashb
 npm run fiber-scope -- fixtures
 npm run fiber-scope -- inspect --snapshot fixtures/unbalanced-route-failure.json
 npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json
+npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json --rpc http://127.0.0.1:8227
+npm run fiber-scope -- runbook --snapshot fixtures/no-peers-no-graph.json --bootstrap-node fiber-testnet-public-bottle --out docs/fresh-node-runbook.md
 npm run fiber-scope -- report --snapshot fixtures/unbalanced-route-failure.json --out reports/demo-report.md
 npm run fiber-scope -- diff --before fixtures/no-peers-no-graph.json --after fixtures/unbalanced-route-failure.json
 npm run fiber-scope -- presets --network testnet
@@ -48,6 +52,8 @@ npm run fiber-scope -- presets --node fiber-testnet-public-bottle --rpc http://1
 Demo artifact: [`docs/demo-report.md`](docs/demo-report.md).
 
 Diff artifact: [`docs/demo-diff.md`](docs/demo-diff.md).
+
+Operator runbook artifact: [`docs/demo-runbook.md`](docs/demo-runbook.md).
 
 Submission brief: [`SUBMISSION.md`](SUBMISSION.md).
 
@@ -111,6 +117,8 @@ The diff command compares two snapshots and highlights peer, graph, liquidity, r
 
 The gate command turns a snapshot into an automation-friendly payment-readiness decision. By default it requires score >= 90, status `ready`, a successful route dry run, no warning/critical findings, and required RPC evidence. It exits with code `2` when the gate fails, making it useful for CI, cron checks, and post-bootstrap scripts.
 
+The runbook command turns failed findings into ordered operator actions. Each step records its trigger, required Biscuit scope, safety class, approval requirement, exact Fiber RPC or CLI payload, and a measurable success condition. It can generate `connect_peer`, `open_channel`, `update_channel`, graph checks, and `send_payment` dry runs. The policy is review-only: FiberScope never executes a generated step and never emits a real payment request.
+
 Public-node presets generate v0.8 pubkey-based `connect_peer`, `open_channel`, and `list_channels` payloads for the documented Fiber mainnet/testnet public nodes. The generated follow-up command runs FiberScope collection after the node reaches `ChannelReady`.
 
 FiberScope follows the Fiber docs recommendation to run dry runs before real rebalances, and it generates a self-payment dry-run payload with `allow_self_payment: true`.
@@ -128,4 +136,4 @@ Run:
 npm run verify
 ```
 
-This refreshes the report, diff, and CLI transcript used by [`SUBMISSION.md`](SUBMISSION.md).
+This refreshes the report, diff, operator runbook, and CLI transcript used by [`SUBMISSION.md`](SUBMISSION.md).

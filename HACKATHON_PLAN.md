@@ -30,6 +30,8 @@ That diagnostic loop is exactly where infrastructure teams lose time. FiberScope
 10. Submission brief and reproducible CLI transcript for judges.
 11. Dashboard Live RPC Lab backed by a local `/api/collect` proxy.
 12. Payment-readiness gate for CLI automation and dashboard review.
+13. Review-only operator runbook with safety classes, exact Fiber RPC payloads, and success criteria.
+14. Topology-led operator console that maps captured Fiber graph evidence to the payment target and runbook.
 
 ## Demo Script
 
@@ -40,10 +42,11 @@ That diagnostic loop is exactly where infrastructure teams lose time. FiberScope
 5. Show Public Node Presets and generate a testnet bootstrap runbook.
 6. Show the Live RPC Lab and the generated `collect` command.
 7. Run `fiber-scope gate` against the healthy route-ready fixture.
-8. Export a report and diff.
-9. Open the CLI transcript and submission brief.
-10. Explain the generated circular rebalance dry-run payload.
-11. Optional: run `collect` against a local FNN node.
+8. Open Operator Runbook and select the reduced-payment and circular-rebalance dry-run steps.
+9. Generate a fresh-node runbook with `--bootstrap-node fiber-testnet-public-bottle` to show approval-gated peer and channel actions.
+10. Export a report, runbook, and diff.
+11. Open the CLI transcript and submission brief.
+12. Optional: run `collect` against a local FNN node.
 
 ## Submission Checklist
 

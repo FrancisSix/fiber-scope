@@ -2,14 +2,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
 import {
+  buildRemediationRunbook,
   diffSnapshots,
   evaluateReadinessGate,
   formatAmount,
   inspectSnapshot,
   parseAmount,
   renderConsoleGate,
+  renderConsoleRunbook,
   renderMarkdownDiff,
   renderMarkdownReport,
+  renderMarkdownRunbook,
   toRpcHex
 } from '../src/core.js';
 
@@ -110,4 +113,75 @@ test('fails the readiness gate for degraded route and liquidity state', () => {
   assert.ok(failureIds.includes('FS-GATE-ROUTE-001'));
   assert.ok(gate.blockingFindings.some((finding) => finding.id === 'FS-ROUTE-DRYRUN-FAILED-001'));
   assert.match(renderConsoleGate(gate), /FiberScope Gate: FAIL/);
+});
+
+test('builds a review-only liquidity remediation runbook', () => {
+  const inspection = inspectSnapshot(fixture('unbalanced-route-failure'));
+  const runbook = buildRemediationRunbook(inspection);
+  const paymentSteps = runbook.steps.filter((step) => step.method === 'send_payment');
+
+  assert.equal(runbook.executionPolicy, 'review_only');
+  assert.equal(runbook.verdict, 'action_required');
+  assert.equal(runbook.counts.dryRun, 2);
+  assert.equal(paymentSteps.length, 2);
+  assert.ok(paymentSteps.every((step) => step.request.params[0].dry_run === true));
+  assert.ok(paymentSteps.some((step) => step.request.params[0].allow_self_payment === true));
+  assert.match(renderConsoleRunbook(runbook), /Rehearse the circular rebalance candidate/);
+  assert.match(renderMarkdownRunbook(runbook), /Review-only plan/);
+});
+
+test('generates approval-gated bootstrap peer and channel actions', () => {
+  const inspection = inspectSnapshot(fixture('no-peers-no-graph'));
+  const runbook = buildRemediationRunbook(inspection, {
+    bootstrapNode: {
+      name: 'testnet-bootstrap',
+      network: 'testnet',
+      pubkey: '02bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      fundingAmount: '49900000000'
+    }
+  });
+  const connect = runbook.steps.find((step) => step.method === 'connect_peer');
+  const open = runbook.steps.find((step) => step.method === 'open_channel');
+
+  assert.equal(connect.safety, 'reversible_write');
+  assert.equal(connect.approval, 'required');
+  assert.equal(open.safety, 'funding_write');
+  assert.equal(open.approval, 'required');
+  assert.equal(open.request.params[0].funding_amount, '0xb9e459300');
+  assert.equal(runbook.counts.approvalRequired, 2);
+});
+
+test('uses update_channel for disabled ready channels', () => {
+  const snapshot = fixture('healthy-ready');
+  snapshot.rpc.list_channels.result.channels[0].enabled = false;
+  const runbook = buildRemediationRunbook(inspectSnapshot(snapshot));
+  const update = runbook.steps.find((step) => step.method === 'update_channel');
+
+  assert.ok(update);
+  assert.deepEqual(update.request.params, [{
+    channel_id: '0x3333333333333333333333333333333333333333333333333333333333333333',
+    enabled: true
+  }]);
+  assert.equal(update.requiredScope, 'write("channels")');
+});
+
+test('keeps a healthy runbook in validation-only mode', () => {
+  const runbook = buildRemediationRunbook(inspectSnapshot(fixture('healthy-ready')));
+
+  assert.equal(runbook.verdict, 'ready');
+  assert.equal(runbook.steps.length, 2);
+  assert.ok(runbook.steps.every((step) => step.safety === 'read_only'));
+});
+
+test('rejects a bootstrap preset from the wrong Fiber network', () => {
+  const inspection = inspectSnapshot(fixture('no-peers-no-graph'));
+
+  assert.throws(() => buildRemediationRunbook(inspection, {
+    bootstrapNode: {
+      name: 'mainnet-bootstrap',
+      network: 'mainnet',
+      pubkey: '02bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      fundingAmount: '49900000000'
+    }
+  }), /does not match snapshot network testnet/);
 });

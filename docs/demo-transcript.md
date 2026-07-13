@@ -125,6 +125,41 @@ Required RPC: node_info, list_peers, list_channels, graph_nodes, graph_channels,
 Node satisfies the payment-readiness gate.
 ```
 
+## Generate an operator remediation runbook
+
+```bash
+npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json --rpc http://127.0.0.1:8227
+```
+
+```text
+FiberScope Operator Runbook: ACTION_REQUIRED
+Node: alpha-operator (degraded, 82/100)
+Plan: 2 remediation steps before final validation.
+Safety: Review-only plan. FiberScope does not execute RPCs, open channels, or send payments from this runbook.
+Required scopes: write("payments"), read("node"), read("peers"), read("channels"), read("graph")
+
+1. [DRY RUN, NO TRANSFER] Rehearse a reduced target amount
+   Phase: liquidity | Approval: review | Scope: write("payments")
+   Why: A smaller dry run separates first-hop liquidity pressure from complete route unavailability.
+   RPC: {"jsonrpc":"2.0","id":1,"method":"send_payment","params":[{"target_pubkey":"02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","amount":"0x12a05f200","keysend":true,"dry_run":true,"max_fee_amount":"0x17d7840"}]}
+   Success: send_payment dry_run builds a route for 50 CKB within the generated fee cap.
+2. [DRY RUN, NO TRANSFER] Rehearse the circular rebalance candidate
+   Phase: liquidity | Approval: review | Scope: write("payments")
+   Why: The channel pair has complementary imbalance that may be corrected by a self-payment.
+   RPC: {"jsonrpc":"2.0","id":2,"method":"send_payment","params":[{"target_pubkey":"02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","amount":"0x2540be400","keysend":true,"allow_self_payment":true,"dry_run":true,"max_fee_amount":"0x2faf080"}]}
+   Success: The 100 CKB self-payment dry run returns an acceptable circular route and fee.
+3. [READ ONLY] Collect fresh post-action evidence
+   Phase: validation | Approval: not_required | Scope: read("node"), read("peers"), read("channels"), read("graph"), write("payments")
+   Why: Every action should be verified from a new node snapshot rather than inferred from the RPC response alone.
+   Command: npm run fiber-scope -- collect --rpc http://127.0.0.1:8227 --out snapshots/post-runbook.json --graph-limit 200 --graph-pages 5 --amount 0x2540be400 --target-pubkey 02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+   Success: A fresh snapshots/post-runbook.json contains node, peer, channel, graph, and route evidence.
+4. [READ ONLY] Rerun the payment-readiness gate
+   Phase: validation | Approval: not_required | Scope: none
+   Why: The workflow is complete only when the strict policy passes on fresh evidence.
+   Command: npm run fiber-scope -- gate --snapshot snapshots/post-runbook.json
+   Success: FiberScope Gate returns PASS with exit code 0.
+```
+
 ## Compare fresh node against route-probed node
 
 ```bash

@@ -265,6 +265,7 @@ export function inspectSnapshot(snapshot, options = {}) {
 
   return {
     product: 'FiberScope',
+    network: snapshot?.meta?.network ?? null,
     status,
     score,
     capturedAt: snapshot?.meta?.capturedAt ?? snapshot?.capturedAt ?? null,
@@ -408,6 +409,464 @@ export function renderConsoleGate(gate) {
     for (const finding of gate.blockingFindings.slice(0, 5)) {
       lines.push(`- [${finding.severity.toUpperCase()}] ${finding.id}: ${finding.title}`);
     }
+  }
+
+  return lines.join('\n');
+}
+
+export function buildRemediationRunbook(inspection, options = {}) {
+  const rpcUrl = options.rpcUrl ?? 'http://127.0.0.1:8227';
+  const bootstrapNode = normalizeBootstrapNode(options.bootstrapNode);
+  if (
+    inspection.network
+    && bootstrapNode?.network
+    && inspection.network !== bootstrapNode.network
+  ) {
+    throw new Error(`Bootstrap node network ${bootstrapNode.network} does not match snapshot network ${inspection.network}`);
+  }
+  const findingIds = new Set(inspection.findings.map((finding) => finding.id));
+  const gate = evaluateReadinessGate(inspection, options.gatePolicy);
+  const drafts = [];
+  const draftKeys = new Set();
+
+  const addStep = (key, step) => {
+    if (draftKeys.has(key)) return;
+    draftKeys.add(key);
+    drafts.push({ key, ...step });
+  };
+  const addRpcStep = (key, step) => addStep(key, {
+    execution: 'rpc',
+    ...step
+  });
+  const addManualStep = (key, step) => addStep(key, {
+    execution: 'manual',
+    safety: 'manual',
+    approval: 'external',
+    requiredScope: null,
+    ...step
+  });
+  const hasFinding = (id) => findingIds.has(id);
+
+  if (hasFinding('FS-AUTH-SCOPE-001')) {
+    addManualStep('repair-auth', {
+      phase: 'access',
+      title: 'Issue a least-privilege operator token',
+      rationale: 'The captured Biscuit token cannot read all diagnostic evidence or authorize a payment dry run.',
+      triggeredBy: ['FS-AUTH-SCOPE-001'],
+      instruction: 'Issue a short-lived Biscuit token containing the scopes listed by this runbook, then recollect the snapshot. Keep write scopes out of long-lived dashboard tokens.',
+      successCriteria: 'Every required RPC returns a result instead of an authorization error.',
+      docs: [DOC_REFS.auth]
+    });
+  }
+
+  if (hasFinding('FS-NODE-RPC-001')) {
+    addRpcStep('probe-node-info', {
+      phase: 'access',
+      title: 'Restore the node RPC health check',
+      rationale: 'Node identity and version must be known before channel or payment actions are reviewed.',
+      triggeredBy: ['FS-NODE-RPC-001'],
+      safety: 'read_only',
+      approval: 'not_required',
+      requiredScope: 'read("node")',
+      method: 'node_info',
+      params: [],
+      successCriteria: 'node_info returns the expected pubkey, chain hash, and Fiber version.',
+      docs: [DOC_REFS.rpc]
+    });
+  }
+
+  if (hasFinding('FS-MIGRATION-PUBKEY-001')) {
+    addManualStep('migrate-pubkey-rpcs', {
+      phase: 'access',
+      title: 'Migrate peer RPC parameters to pubkeys',
+      rationale: 'Fiber v0.8 replaced peer_id parameters across peer and channel RPCs.',
+      triggeredBy: ['FS-MIGRATION-PUBKEY-001'],
+      instruction: 'Replace peer_id fields with pubkey in connect_peer, open_channel, and list_channels integrations before retrying the workflow.',
+      successCriteria: 'The operator integration sends v0.8 pubkey-based RPC payloads.',
+      docs: [DOC_REFS.migration]
+    });
+  }
+
+  const stalePeers = inspection.channels.filter((channel) => channel.stateName === 'Stale' && channel.pubkey);
+  if (hasFinding('FS-PEER-NONE-001') || stalePeers.length > 0) {
+    const peerTargets = hasFinding('FS-PEER-NONE-001')
+      ? (bootstrapNode ? [bootstrapNode.pubkey] : [])
+      : stalePeers.map((channel) => channel.pubkey);
+
+    if (peerTargets.length === 0) {
+      addManualStep('select-bootstrap-peer', {
+        phase: 'connectivity',
+        title: 'Select a documented public bootstrap peer',
+        rationale: 'The node has no connected peers and the snapshot does not identify a safe bootstrap target.',
+        triggeredBy: ['FS-PEER-NONE-001'],
+        instruction: 'Select a public-node preset for the snapshot network, then regenerate this runbook with its pubkey.',
+        successCriteria: 'A stable v0.8 public-node pubkey is selected for connect_peer.',
+        docs: [DOC_REFS.publicNodes]
+      });
+    }
+
+    for (const pubkey of [...new Set(peerTargets)]) {
+      addRpcStep(`connect-peer:${pubkey}`, {
+        phase: 'connectivity',
+        title: hasFinding('FS-PEER-NONE-001') ? 'Connect a bootstrap Fiber peer' : 'Reconnect the stale channel peer',
+        rationale: hasFinding('FS-PEER-NONE-001')
+          ? 'At least one peer is required before gossip and channel operations can progress.'
+          : 'A stale channel needs its peer connection restored before passive state audit can complete.',
+        triggeredBy: hasFinding('FS-PEER-NONE-001') ? ['FS-PEER-NONE-001'] : ['FS-CHANNEL-STALE-001'],
+        safety: 'reversible_write',
+        approval: 'required',
+        requiredScope: 'write("peers")',
+        method: 'connect_peer',
+        params: [{ pubkey, save: true }],
+        successCriteria: `list_peers includes ${shortPubkey(pubkey)}.`,
+        docs: [DOC_REFS.publicNodes, DOC_REFS.rpc]
+      });
+    }
+  }
+
+  if (hasFinding('FS-CHANNEL-NONE-001')) {
+    if (bootstrapNode?.pubkey && bootstrapNode?.fundingAmount) {
+      addRpcStep(`open-channel:${bootstrapNode.pubkey}`, {
+        phase: 'channels',
+        title: 'Open a public bootstrap channel',
+        rationale: 'A funded ChannelReady channel is required before the node can send or forward payments.',
+        triggeredBy: ['FS-CHANNEL-NONE-001'],
+        safety: 'funding_write',
+        approval: 'required',
+        requiredScope: 'write("channels")',
+        method: 'open_channel',
+        params: [{
+          pubkey: bootstrapNode.pubkey,
+          funding_amount: toRpcHex(bootstrapNode.fundingAmount),
+          public: true
+        }],
+        successCriteria: `list_channels shows a ChannelReady channel with ${bootstrapNode.name ?? shortPubkey(bootstrapNode.pubkey)}.`,
+        docs: [DOC_REFS.publicNodes, DOC_REFS.rpc]
+      });
+    } else {
+      addManualStep('choose-channel-funding', {
+        phase: 'channels',
+        title: 'Choose the bootstrap channel and funding amount',
+        rationale: 'Opening a channel locks funds and must not be guessed from an incomplete snapshot.',
+        triggeredBy: ['FS-CHANNEL-NONE-001'],
+        instruction: 'Choose a documented public node and an accepted funding amount, then regenerate the runbook with explicit bootstrap details.',
+        successCriteria: 'The target pubkey and funding amount have been reviewed against the public-node policy.',
+        docs: [DOC_REFS.publicNodes]
+      });
+    }
+  }
+
+  if (hasFinding('FS-CHANNEL-PENDING-001') || hasFinding('FS-CHANNEL-FAILED-001') || hasFinding('FS-CHANNEL-NONE-001')) {
+    addRpcStep('inspect-pending-channels', {
+      phase: 'channels',
+      title: 'Inspect channel opening progress',
+      rationale: 'Pending and failed funding flows need explicit evidence before route checks continue.',
+      triggeredBy: [
+        ...(hasFinding('FS-CHANNEL-PENDING-001') ? ['FS-CHANNEL-PENDING-001'] : []),
+        ...(hasFinding('FS-CHANNEL-FAILED-001') ? ['FS-CHANNEL-FAILED-001'] : []),
+        ...(hasFinding('FS-CHANNEL-NONE-001') ? ['FS-CHANNEL-NONE-001'] : [])
+      ],
+      safety: 'read_only',
+      approval: 'not_required',
+      requiredScope: 'read("channels")',
+      method: 'list_channels',
+      params: [{ only_pending: true }],
+      successCriteria: 'The opening attempt has no failure_detail and progresses to ChannelReady.',
+      docs: [DOC_REFS.rpc]
+    });
+  }
+
+  if (hasFinding('FS-CHANNEL-DISABLED-001')) {
+    const disabledChannels = inspection.channels.filter((channel) => channel.ready && !channel.enabled);
+    for (const channel of disabledChannels) {
+      if (!channel.channelId) {
+        addManualStep(`identify-disabled-channel:${channel.pubkey}`, {
+          phase: 'channels',
+          title: 'Identify the disabled channel ID',
+          rationale: 'update_channel requires a final channel_id, which is missing from this snapshot.',
+          triggeredBy: ['FS-CHANNEL-DISABLED-001'],
+          instruction: `Recollect list_channels for peer ${channel.pubkey ?? 'unknown'} and record channel_id.`,
+          successCriteria: 'The disabled ChannelReady entry has a final channel_id.',
+          docs: [DOC_REFS.rpc]
+        });
+        continue;
+      }
+      addRpcStep(`enable-channel:${channel.channelId}`, {
+        phase: 'channels',
+        title: 'Re-enable the ready channel',
+        rationale: 'The channel exists but is excluded from forwarding and payment attempts.',
+        triggeredBy: ['FS-CHANNEL-DISABLED-001'],
+        safety: 'reversible_write',
+        approval: 'required',
+        requiredScope: 'write("channels")',
+        method: 'update_channel',
+        params: [{ channel_id: channel.channelId, enabled: true }],
+        successCriteria: `list_channels reports enabled=true for ${shortPubkey(channel.pubkey)}.`,
+        docs: [DOC_REFS.rpc]
+      });
+    }
+  }
+
+  if (hasFinding('FS-GOSSIP-CATCHUP-001')) {
+    addRpcStep('probe-public-graph', {
+      phase: 'routing',
+      title: 'Verify public gossip catch-up',
+      rationale: 'A connected node still needs usable public topology before route building is meaningful.',
+      triggeredBy: ['FS-GOSSIP-CATCHUP-001'],
+      safety: 'read_only',
+      approval: 'not_required',
+      requiredScope: 'read("graph")',
+      method: 'graph_channels',
+      params: [{ limit: 200 }],
+      successCriteria: 'graph_channels returns public channels and the count grows or stabilizes across collections.',
+      docs: [DOC_REFS.gossip]
+    });
+  }
+
+  const requestedAmount = inspection.intent.amount ? parseAmount(inspection.intent.amount) : null;
+  const targetPubkey = inspection.intent.targetPubkey;
+  const routeNeedsProbe = (
+    hasFinding('FS-LIQUIDITY-OUTBOUND-LOW-001')
+    || hasFinding('FS-ROUTE-DRYRUN-FAILED-001')
+  ) && inspection.route.authLike !== true;
+
+  if (routeNeedsProbe && requestedAmount && targetPubkey) {
+    const reducedAmount = requestedAmount > 1n ? requestedAmount / 2n : requestedAmount;
+    addRpcStep('rehearse-reduced-payment', {
+      phase: 'liquidity',
+      title: 'Rehearse a reduced target amount',
+      rationale: 'A smaller dry run separates first-hop liquidity pressure from complete route unavailability.',
+      triggeredBy: [
+        ...(hasFinding('FS-LIQUIDITY-OUTBOUND-LOW-001') ? ['FS-LIQUIDITY-OUTBOUND-LOW-001'] : []),
+        ...(hasFinding('FS-ROUTE-DRYRUN-FAILED-001') ? ['FS-ROUTE-DRYRUN-FAILED-001'] : [])
+      ],
+      safety: 'dry_run',
+      approval: 'review',
+      requiredScope: 'write("payments")',
+      method: 'send_payment',
+      params: [paymentDryRunParams(targetPubkey, reducedAmount)],
+      successCriteria: `send_payment dry_run builds a route for ${formatAmount(reducedAmount)} within the generated fee cap.`,
+      docs: [DOC_REFS.channelRebalancing, DOC_REFS.rpc]
+    });
+  } else if (routeNeedsProbe && (!requestedAmount || !targetPubkey)) {
+    addManualStep('capture-payment-intent', {
+      phase: 'liquidity',
+      title: 'Capture the exact payment intent',
+      rationale: 'A route rehearsal requires both the target pubkey and amount.',
+      triggeredBy: ['FS-ROUTE-DRYRUN-FAILED-001'],
+      instruction: 'Recollect with --target-pubkey and --amount so the runbook can generate a deterministic dry-run payload.',
+      successCriteria: 'The snapshot records intent.targetPubkey and intent.amount.',
+      docs: [DOC_REFS.rpc]
+    });
+  }
+
+  if (hasFinding('FS-ROUTE-DRYRUN-MISSING-001')) {
+    if (requestedAmount && targetPubkey) {
+      addRpcStep('capture-route-dry-run', {
+        phase: 'routing',
+        title: 'Capture route dry-run evidence',
+        rationale: 'Static channel state cannot prove that a payment route is currently buildable.',
+        triggeredBy: ['FS-ROUTE-DRYRUN-MISSING-001'],
+        safety: 'dry_run',
+        approval: 'review',
+        requiredScope: 'write("payments")',
+        method: 'send_payment',
+        params: [paymentDryRunParams(targetPubkey, requestedAmount)],
+        successCriteria: 'send_payment dry_run returns route data and an acceptable fee without transferring value.',
+        docs: [DOC_REFS.channelRebalancing, DOC_REFS.rpc]
+      });
+    } else {
+      addManualStep('capture-route-intent', {
+        phase: 'routing',
+        title: 'Add a target and amount for route rehearsal',
+        rationale: 'The snapshot lacks enough intent data to construct send_payment dry_run safely.',
+        triggeredBy: ['FS-ROUTE-DRYRUN-MISSING-001'],
+        instruction: 'Set --target-pubkey and --amount during collection, then regenerate the runbook.',
+        successCriteria: 'The snapshot contains a target pubkey and amount.',
+        docs: [DOC_REFS.rpc]
+      });
+    }
+  }
+
+  if (inspection.rebalanceSuggestions.length > 0) {
+    const suggestion = inspection.rebalanceSuggestions[0];
+    addRpcStep('rehearse-circular-rebalance', {
+      phase: 'liquidity',
+      title: 'Rehearse the circular rebalance candidate',
+      rationale: 'The channel pair has complementary imbalance that may be corrected by a self-payment.',
+      triggeredBy: ['FS-REBALANCE-CANDIDATE-001'],
+      safety: 'dry_run',
+      approval: 'review',
+      requiredScope: 'write("payments")',
+      method: suggestion.automaticDryRun.method,
+      params: suggestion.automaticDryRun.params,
+      successCriteria: `The ${suggestion.amountLabel} self-payment dry run returns an acceptable circular route and fee.`,
+      docs: [DOC_REFS.channelRebalancing]
+    });
+  }
+
+  const remediationStepCount = drafts.length;
+  const collectArgs = [
+    'npm run fiber-scope -- collect',
+    '--rpc', rpcUrl,
+    '--out', 'snapshots/post-runbook.json',
+    '--graph-limit', '200',
+    '--graph-pages', '5'
+  ];
+  if (inspection.intent.amount) collectArgs.push('--amount', inspection.intent.amount);
+  if (targetPubkey) collectArgs.push('--target-pubkey', targetPubkey);
+
+  addStep('collect-fresh-evidence', {
+    execution: 'cli',
+    phase: 'validation',
+    title: 'Collect fresh post-action evidence',
+    rationale: 'Every action should be verified from a new node snapshot rather than inferred from the RPC response alone.',
+    triggeredBy: [],
+    safety: 'read_only',
+    approval: 'not_required',
+    requiredScope: null,
+    requiredScopes: [
+      'read("node")',
+      'read("peers")',
+      'read("channels")',
+      'read("graph")',
+      ...(targetPubkey && inspection.intent.amount ? ['write("payments")'] : [])
+    ],
+    command: collectArgs.join(' '),
+    successCriteria: 'A fresh snapshots/post-runbook.json contains node, peer, channel, graph, and route evidence.',
+    docs: [DOC_REFS.rpc]
+  });
+  addStep('rerun-readiness-gate', {
+    execution: 'cli',
+    phase: 'validation',
+    title: 'Rerun the payment-readiness gate',
+    rationale: 'The workflow is complete only when the strict policy passes on fresh evidence.',
+    triggeredBy: [],
+    safety: 'read_only',
+    approval: 'not_required',
+    requiredScope: null,
+    command: 'npm run fiber-scope -- gate --snapshot snapshots/post-runbook.json',
+    successCriteria: 'FiberScope Gate returns PASS with exit code 0.',
+    docs: []
+  });
+
+  const steps = drafts.map((draft, index) => finalizeRunbookStep(draft, index, rpcUrl));
+  const counts = countRunbookSteps(steps);
+  const requiredScopes = [...new Set(steps.flatMap((step) => step.requiredScopes))];
+  const authStep = steps.find((step) => step.key === 'repair-auth');
+  if (authStep) {
+    authStep.instruction = `Issue a short-lived Biscuit token with: ${requiredScopes.join(', ')}. Keep write scopes out of long-lived dashboard tokens.`;
+    authStep.successCriteria = 'All scoped RPC checks return results instead of authorization errors.';
+  }
+
+  return {
+    product: 'FiberScope',
+    type: 'operator_runbook',
+    executionPolicy: 'review_only',
+    rpcUrl,
+    network: inspection.network,
+    node: {
+      name: inspection.metrics.nodeName,
+      pubkey: inspection.metrics.pubkey,
+      status: inspection.status,
+      score: inspection.score
+    },
+    bootstrapNode,
+    verdict: gate.passed ? 'ready' : 'action_required',
+    summary: gate.passed
+      ? 'No remediation is required; recollect and keep the strict gate green.'
+      : `${remediationStepCount} remediation step${remediationStepCount === 1 ? '' : 's'} before final validation.`,
+    gate: {
+      passed: gate.passed,
+      failures: gate.failures.map((failure) => failure.id)
+    },
+    requiredScopes,
+    counts,
+    safetyNotice: 'Review-only plan. FiberScope does not execute RPCs, open channels, or send payments from this runbook.',
+    steps
+  };
+}
+
+export function renderConsoleRunbook(runbook) {
+  const lines = [];
+  lines.push(`FiberScope Operator Runbook: ${runbook.verdict.toUpperCase()}`);
+  lines.push(`Node: ${runbook.node.name} (${runbook.node.status}, ${runbook.node.score}/100)`);
+  lines.push(`Plan: ${runbook.summary}`);
+  lines.push(`Safety: ${runbook.safetyNotice}`);
+  lines.push(`Required scopes: ${runbook.requiredScopes.join(', ') || 'none'}`);
+  lines.push('');
+
+  for (const step of runbook.steps) {
+    lines.push(`${step.sequence}. [${step.safetyLabel.toUpperCase()}] ${step.title}`);
+    lines.push(`   Phase: ${step.phase} | Approval: ${step.approval} | Scope: ${step.scopeLabel}`);
+    lines.push(`   Why: ${step.rationale}`);
+    if (step.instruction) lines.push(`   Action: ${step.instruction}`);
+    if (step.request) lines.push(`   RPC: ${JSON.stringify(step.request)}`);
+    if (step.command) lines.push(`   Command: ${step.command}`);
+    lines.push(`   Success: ${step.successCriteria}`);
+  }
+
+  return lines.join('\n');
+}
+
+export function renderMarkdownRunbook(runbook) {
+  const lines = [];
+  lines.push('# FiberScope Operator Runbook');
+  lines.push('');
+  lines.push(`- Verdict: **${runbook.verdict}**`);
+  lines.push(`- Node: **${escapeCell(runbook.node.name)}** (${runbook.node.status}, ${runbook.node.score}/100)`);
+  lines.push(`- Network: **${runbook.network ?? 'unknown'}**`);
+  lines.push(`- RPC: \`${runbook.rpcUrl}\``);
+  lines.push(`- Plan: ${runbook.summary}`);
+  lines.push('');
+  lines.push(`> ${runbook.safetyNotice}`);
+  lines.push('');
+  lines.push('## Safety Summary');
+  lines.push('');
+  lines.push('| Read only | Dry run | Reversible write | Funding write | Manual | Approval required |');
+  lines.push('| ---: | ---: | ---: | ---: | ---: | ---: |');
+  lines.push(`| ${runbook.counts.readOnly} | ${runbook.counts.dryRun} | ${runbook.counts.reversibleWrite} | ${runbook.counts.fundingWrite} | ${runbook.counts.manual} | ${runbook.counts.approvalRequired} |`);
+  lines.push('');
+  lines.push(`Required Biscuit scopes: ${runbook.requiredScopes.map((scope) => `\`${scope}\``).join(', ') || 'none'}`);
+  lines.push('');
+  lines.push('## Ordered Steps');
+  lines.push('');
+  lines.push('| # | Phase | Safety | Step | Trigger |');
+  lines.push('| ---: | --- | --- | --- | --- |');
+  for (const step of runbook.steps) {
+    lines.push(`| ${step.sequence} | ${step.phase} | ${escapeCell(step.safetyLabel)} | ${escapeCell(step.title)} | ${step.triggeredBy.map((id) => `\`${id}\``).join(', ') || 'validation'} |`);
+  }
+  lines.push('');
+
+  for (const step of runbook.steps) {
+    lines.push(`### ${step.sequence}. ${step.title}`);
+    lines.push('');
+    lines.push(`**Why:** ${step.rationale}`);
+    lines.push('');
+    lines.push(`**Safety:** ${step.safetyLabel}; approval ${step.approval}; scope ${step.requiredScopes.length > 0 ? step.requiredScopes.map((scope) => `\`${scope}\``).join(', ') : 'none'}.`);
+    lines.push('');
+    if (step.instruction) {
+      lines.push(step.instruction);
+      lines.push('');
+    }
+    if (step.request) {
+      lines.push('```json');
+      lines.push(JSON.stringify(step.request, null, 2));
+      lines.push('```');
+      lines.push('');
+      lines.push('```bash');
+      lines.push(step.curl);
+      lines.push('```');
+      lines.push('');
+    }
+    if (step.command) {
+      lines.push('```bash');
+      lines.push(step.command);
+      lines.push('```');
+      lines.push('');
+    }
+    lines.push(`**Success:** ${step.successCriteria}`);
+    lines.push('');
   }
 
   return lines.join('\n');
@@ -1011,6 +1470,98 @@ function buildRebalanceSuggestions(channels, ownPubkey, requestedAmount) {
     });
   }
   return suggestions;
+}
+
+function normalizeBootstrapNode(node) {
+  if (!node?.pubkey) return null;
+  const fundingAmount = node.fundingAmount === null || node.fundingAmount === undefined
+    ? null
+    : parseAmount(node.fundingAmount).toString();
+  return {
+    name: node.name ?? null,
+    network: node.network ?? null,
+    pubkey: node.pubkey,
+    fundingAmount,
+    fundingAmountHex: fundingAmount ? toRpcHex(fundingAmount) : null,
+    fundingAmountLabel: fundingAmount ? formatAmount(fundingAmount) : null
+  };
+}
+
+function paymentDryRunParams(targetPubkey, amount) {
+  const maxFee = maxBigInt(parseAmount(amount) / 200n, 1000n);
+  return {
+    target_pubkey: targetPubkey,
+    amount: toRpcHex(amount),
+    keysend: true,
+    dry_run: true,
+    max_fee_amount: toRpcHex(maxFee)
+  };
+}
+
+function finalizeRunbookStep(draft, index, rpcUrl) {
+  const sequence = index + 1;
+  const { method, params, requiredScope, requiredScopes: draftRequiredScopes, ...rest } = draft;
+  const requiredScopes = draftRequiredScopes ?? (requiredScope ? [requiredScope] : []);
+  const request = method
+    ? {
+        jsonrpc: '2.0',
+        id: sequence,
+        method,
+        params: params ?? []
+      }
+    : null;
+  return {
+    id: `FS-RUN-${String(sequence).padStart(3, '0')}`,
+    sequence,
+    ...rest,
+    method: method ?? null,
+    requiredScope: requiredScopes.length === 1 ? requiredScopes[0] : null,
+    requiredScopes,
+    scopeLabel: requiredScopes.join(', ') || 'none',
+    safetyLabel: runbookSafetyLabel(draft.safety),
+    request,
+    curl: request ? runbookCurlCommand(rpcUrl, request) : null
+  };
+}
+
+function runbookSafetyLabel(safety) {
+  const labels = {
+    read_only: 'read only',
+    dry_run: 'dry run, no transfer',
+    reversible_write: 'reversible write',
+    funding_write: 'funding write',
+    manual: 'manual review'
+  };
+  return labels[safety] ?? safety;
+}
+
+function runbookCurlCommand(rpcUrl, request) {
+  return `curl -s --location '${rpcUrl}' --header 'Content-Type: application/json' --data '${JSON.stringify(request)}'`;
+}
+
+function countRunbookSteps(steps) {
+  const counts = {
+    total: steps.length,
+    readOnly: 0,
+    dryRun: 0,
+    reversibleWrite: 0,
+    fundingWrite: 0,
+    manual: 0,
+    approvalRequired: 0
+  };
+  const keyBySafety = {
+    read_only: 'readOnly',
+    dry_run: 'dryRun',
+    reversible_write: 'reversibleWrite',
+    funding_write: 'fundingWrite',
+    manual: 'manual'
+  };
+  for (const step of steps) {
+    const key = keyBySafety[step.safety];
+    if (key) counts[key] += 1;
+    if (step.approval === 'required') counts.approvalRequired += 1;
+  }
+  return counts;
 }
 
 function assetKey(script) {

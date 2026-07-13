@@ -2,7 +2,7 @@
 
 ## One-liner
 
-FiberScope is a Fiber Network operator cockpit that turns FNN RPC snapshots into route-readiness diagnostics, liquidity findings, public-node setup runbooks, and before/after progress reports.
+FiberScope is a Fiber Network operator cockpit that turns FNN RPC snapshots into route-readiness diagnostics, safety-labeled remediation runbooks, and before/after progress reports.
 
 ## Track Fit
 
@@ -19,6 +19,8 @@ Fiber exposes the right primitives, but operators still have to manually correla
 - Dashboard: `npm run dashboard`, then open `http://127.0.0.1:4173/`
 - Live collector: dashboard Live RPC Lab or `npm run fiber-scope -- collect --rpc http://127.0.0.1:8227 --out snapshots/live-node.json --self-rebalance`
 - Readiness gate: `npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json`
+- Operator runbook: `npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json`
+- Runbook artifact: [docs/demo-runbook.md](docs/demo-runbook.md)
 - CLI transcript: [docs/demo-transcript.md](docs/demo-transcript.md)
 - Diagnostic report: [docs/demo-report.md](docs/demo-report.md)
 - Snapshot diff: [docs/demo-diff.md](docs/demo-diff.md)
@@ -39,17 +41,21 @@ Suggested reviewer path:
 1. Open the dashboard.
 2. Use the Live RPC Lab if a local FNN RPC endpoint is available.
 3. Check the Readiness Gate to see the automation decision and blockers.
-4. Look at route state, liquidity map, findings, and rebalance probe.
-5. Open Snapshot Diff to see fresh-node -> route-probed-node progress.
-6. Open Public Node Presets to see generated `connect_peer` and `open_channel` payloads.
-7. Read [docs/demo-transcript.md](docs/demo-transcript.md) for the CLI version.
+4. Review the Operator Runbook and select each step to inspect its scope, safety class, exact payload, and success condition.
+5. Look at route state, liquidity map, findings, and rebalance probe.
+6. Open Snapshot Diff to see fresh-node -> route-probed-node progress.
+7. Open Public Node Presets to see generated `connect_peer` and `open_channel` payloads.
+8. Read [docs/demo-transcript.md](docs/demo-transcript.md) for the CLI version.
 
 ## Implemented Features
 
 - Fixture-backed Fiber snapshot inspector.
 - Live FNN RPC collector with bounded graph pagination.
 - Dashboard live-collector proxy for local RPC endpoints.
+- Topology-led operator console derived from captured Fiber graph nodes, channels, node identity, and payment target.
 - Payment-readiness gate with non-zero exit codes for automation.
+- Finding-driven operator runbook with read-only, dry-run, reversible-write, funding-write, and manual safety classes.
+- Exact `connect_peer`, `open_channel`, `update_channel`, graph-check, and `send_payment` dry-run payloads with approval policy and success criteria.
 - Stable diagnostic fingerprints.
 - Circular rebalance candidate generation using `allow_self_payment: true`.
 - Before/after snapshot diff.
@@ -63,11 +69,11 @@ Suggested reviewer path:
 - Fixtures drive the default demo; live-node collection requires access to an FNN RPC endpoint.
 - Public-node preset values are sourced from the checked local Fiber docs and should be refreshed if upstream docs change.
 - The route dry-run analysis explains captured errors, but it does not yet simulate Fiber routing internally.
-- The dashboard live collector only collects snapshots; it does not execute `open_channel` or real payments.
+- Runbooks are intentionally review-only. The dashboard does not execute `connect_peer`, `open_channel`, `update_channel`, or payment RPCs.
 
 ## Roadmap
 
-- Live runbook execution from the dashboard with explicit user confirmation.
+- Approval-gated live runbook execution after a local multi-node devnet rehearsal.
 - Snapshot history and trend view.
 - Fee budget simulator for route candidates.
 - WSS readiness checks for browser/WASM Fiber nodes.

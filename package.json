@@ -1,7 +1,7 @@
 {
   "name": "fiber-scope",
   "version": "0.1.0",
-  "description": "Fiber Network node diagnostics, route readiness, and liquidity rebalance prototype.",
+  "description": "Fiber Network diagnostics, payment-readiness gates, and operator remediation runbooks.",
   "type": "module",
   "repository": {
     "type": "git",

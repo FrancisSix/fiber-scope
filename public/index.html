@@ -9,164 +9,275 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar">
+      <aside class="operator-rail">
         <div class="brand-lockup">
           <span class="brand-mark">FS</span>
           <div>
-            <p class="eyebrow">Fiber Network Ops</p>
-            <h1>FiberScope</h1>
+            <strong>FiberScope</strong>
+            <span>Fiber Network Ops</span>
           </div>
         </div>
 
-        <div class="controls" aria-label="Snapshot controls">
-          <label class="amount-field">
-            <span>Probe amount</span>
-            <input id="amount-input" value="0x2540be400" spellcheck="false">
-          </label>
-          <label class="file-button">
-            <input id="snapshot-file" type="file" accept="application/json">
-            Load After
-          </label>
-          <label class="file-button">
-            <input id="baseline-file" type="file" accept="application/json">
-            Load Before
-          </label>
-          <button id="download-report" type="button">Export MD</button>
+        <nav class="rail-nav" aria-label="Dashboard sections">
+          <a href="#overview" class="rail-link active"><span>01</span>Overview</a>
+          <a href="#runbook" class="rail-link"><span>02</span>Runbook</a>
+          <a href="#diagnostics" class="rail-link"><span>03</span>Diagnostics</a>
+          <a href="#evidence" class="rail-link"><span>04</span>Evidence</a>
+        </nav>
+
+        <div class="rail-status">
+          <span class="connection-dot" aria-hidden="true"></span>
+          <div>
+            <strong id="live-status">Fixture mode</strong>
+            <span id="network-name">testnet</span>
+          </div>
         </div>
-      </header>
+      </aside>
 
-      <main class="dashboard">
-        <section class="panel live-panel">
-          <div class="panel-heading">
-            <h2>Live RPC Lab</h2>
-            <span id="live-status">fixture mode</span>
-          </div>
-          <div class="live-grid">
-            <label class="live-field live-rpc-field">
-              <span>RPC URL</span>
-              <input id="live-rpc-url" value="http://127.0.0.1:8227" spellcheck="false">
-            </label>
-            <label class="live-field">
-              <span>Biscuit token</span>
-              <input id="live-auth-token" type="password" placeholder="optional" spellcheck="false" autocomplete="off">
-            </label>
-            <label class="live-field live-target-field">
-              <span>Target pubkey</span>
-              <input id="live-target-pubkey" placeholder="optional" spellcheck="false">
-            </label>
-            <label class="live-field compact">
-              <span>Graph pages</span>
-              <input id="live-graph-pages" type="number" min="1" max="50" value="5">
-            </label>
-            <label class="live-toggle">
-              <input id="live-self-rebalance" type="checkbox" checked>
-              <span>Self rebalance</span>
-            </label>
-            <button id="collect-live" class="primary-action" type="button">Collect Live</button>
-          </div>
-          <pre id="live-command" class="live-command"></pre>
-        </section>
-
-        <section class="command-deck">
-          <div class="score-panel">
-            <div class="score-ring" id="score-ring">
-              <strong id="score-value">--</strong>
-              <span>/100</span>
-            </div>
-            <div class="score-copy">
-              <span id="status-pill" class="status-pill">loading</span>
-              <h2 id="node-name">Loading snapshot</h2>
-              <p id="node-pubkey" class="mono muted">--</p>
+      <div class="application">
+        <header class="topbar">
+          <div class="page-context">
+            <span class="context-label">Payment operations / route readiness</span>
+            <div class="page-title-row">
+              <h1>Node command center</h1>
+              <span id="snapshot-label" class="snapshot-label">loading snapshot</span>
             </div>
           </div>
 
-          <div class="metric-strip" id="metric-strip"></div>
+          <div class="controls" aria-label="Snapshot controls">
+            <label class="amount-field">
+              <span>Probe amount</span>
+              <input id="amount-input" value="0x2540be400" spellcheck="false">
+            </label>
+            <button id="open-live" class="primary-action" type="button">Connect RPC</button>
+            <label class="file-button">
+              <input id="snapshot-file" type="file" accept="application/json">
+              Load after
+            </label>
+            <label class="file-button secondary-control">
+              <input id="baseline-file" type="file" accept="application/json">
+              Load before
+            </label>
+            <button id="download-report" class="secondary-control" type="button">Export report</button>
+          </div>
+        </header>
 
-          <aside class="route-state">
-            <div class="panel-heading">
-              <h2>Route State</h2>
-              <span id="route-method">--</span>
-            </div>
-            <div class="route-verdict" id="route-verdict">waiting</div>
-            <p id="route-evidence" class="route-evidence">Snapshot loading.</p>
-            <div class="node-facts" id="node-facts"></div>
-          </aside>
-        </section>
-
-        <section class="workspace-grid">
-          <section class="panel findings-panel">
-            <div class="panel-heading">
-              <h2>Findings</h2>
-              <span id="finding-count"></span>
-            </div>
-            <div id="findings-list" class="findings-list"></div>
-          </section>
-
-          <section class="panel liquidity-panel">
-            <div class="panel-heading">
-              <h2>Liquidity Map</h2>
-              <span id="channel-count"></span>
-            </div>
-            <div class="liquidity-ledger">
-              <div class="ledger-head">
-                <span>Local</span>
-                <span>Remote</span>
+        <main class="dashboard">
+          <section id="overview" class="overview-shell">
+            <aside class="readiness-rail">
+              <div class="readiness-heading">
+                <span>Payment readiness</span>
+                <span id="status-pill" class="status-pill">loading</span>
               </div>
-              <div id="channel-list" class="channel-list"></div>
-            </div>
+              <div class="score-row">
+                <div class="score-ring" id="score-ring">
+                  <strong id="score-value">--</strong>
+                  <span>/100</span>
+                </div>
+                <div class="score-copy">
+                  <h2 id="node-name">Loading snapshot</h2>
+                  <p id="node-pubkey" class="mono muted">--</p>
+                </div>
+              </div>
+              <div class="node-facts" id="node-facts"></div>
+            </aside>
+
+            <section class="topology-stage">
+              <div class="topology-heading">
+                <div>
+                  <span class="section-kicker">Observed network state</span>
+                  <h2>Fiber route topology</h2>
+                </div>
+                <div class="topology-counters">
+                  <span><strong id="topology-node-count">0</strong> nodes</span>
+                  <span><strong id="topology-channel-count">0</strong> channels</span>
+                </div>
+              </div>
+              <div class="topology-canvas-wrap">
+                <canvas id="topology-canvas" aria-label="Fiber routing graph"></canvas>
+                <div class="topology-legend" aria-hidden="true">
+                  <span class="legend-self">Self</span>
+                  <span class="legend-peer">Peer</span>
+                  <span class="legend-target">Target</span>
+                </div>
+              </div>
+              <div class="route-strip">
+                <div>
+                  <span id="route-method">--</span>
+                  <strong id="route-verdict" class="route-verdict">waiting</strong>
+                </div>
+                <p id="route-evidence" class="route-evidence">Snapshot loading.</p>
+              </div>
+            </section>
           </section>
 
-          <section class="panel command-panel">
-            <div class="panel-heading">
-              <h2>Rebalance Probe</h2>
+          <section class="metric-strip" id="metric-strip" aria-label="Node metrics"></section>
+
+          <section id="runbook" class="workspace-panel runbook-panel">
+            <div class="section-heading runbook-heading">
+              <div>
+                <span class="section-kicker">Execution plan</span>
+                <h2>Operator runbook</h2>
+              </div>
               <div class="heading-actions">
-                <span id="rebalance-count"></span>
-                <button id="copy-rebalance" class="mini-button" type="button">Copy</button>
+                <span id="runbook-count"></span>
+                <button id="copy-runbook" class="mini-button" type="button">Copy plan</button>
+                <button id="export-runbook" class="mini-button" type="button">Export MD</button>
               </div>
             </div>
-            <pre id="rebalance-output" class="code-block"></pre>
-          </section>
-
-          <section class="panel gate-panel">
-            <div class="panel-heading">
-              <h2>Readiness Gate</h2>
-              <span id="gate-count"></span>
+            <div class="runbook-workbench">
+              <aside id="runbook-summary" class="runbook-summary"></aside>
+              <div id="runbook-steps" class="runbook-steps" aria-label="Ordered remediation steps"></div>
+              <section class="runbook-inspector" aria-live="polite">
+                <div class="runbook-inspector-head">
+                  <div>
+                    <span id="runbook-step-type"></span>
+                    <h3 id="runbook-step-title">Select a step</h3>
+                  </div>
+                  <button id="copy-runbook-step" class="mini-button" type="button">Copy step</button>
+                </div>
+                <pre id="runbook-preview" class="runbook-preview"></pre>
+                <div id="runbook-success" class="runbook-success"></div>
+              </section>
             </div>
-            <div id="gate-summary" class="gate-summary"></div>
-            <div id="gate-failures" class="gate-failures"></div>
           </section>
 
-          <section class="panel diff-panel">
-            <div class="panel-heading">
-              <h2>Snapshot Diff</h2>
-              <span id="diff-count"></span>
-            </div>
-            <div id="diff-summary" class="diff-summary"></div>
-            <div id="diff-metrics" class="diff-metrics"></div>
-            <div id="diff-findings" class="diff-findings"></div>
-          </section>
-
-          <section class="panel presets-panel">
-            <div class="panel-heading">
-              <h2>Public Node Presets</h2>
-              <div class="heading-actions">
-                <span id="preset-count"></span>
-                <button id="copy-preset" class="mini-button" type="button">Copy</button>
+          <section id="diagnostics" class="diagnostic-grid">
+            <section class="workspace-panel findings-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Prioritized</span>
+                  <h2>Findings</h2>
+                </div>
+                <span id="finding-count"></span>
               </div>
-            </div>
-            <div id="preset-list" class="preset-list"></div>
-            <pre id="preset-runbook" class="preset-runbook"></pre>
+              <div id="findings-list" class="findings-list"></div>
+            </section>
+
+            <section class="workspace-panel liquidity-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Local channel balance</span>
+                  <h2>Liquidity</h2>
+                </div>
+                <span id="channel-count"></span>
+              </div>
+              <div class="liquidity-ledger">
+                <div class="ledger-head">
+                  <span>Local</span>
+                  <span>Remote</span>
+                </div>
+                <div id="channel-list" class="channel-list"></div>
+              </div>
+            </section>
+
+            <section class="workspace-panel gate-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Strict policy</span>
+                  <h2>Readiness gate</h2>
+                </div>
+                <span id="gate-count"></span>
+              </div>
+              <div id="gate-summary" class="gate-summary"></div>
+              <div id="gate-failures" class="gate-failures"></div>
+            </section>
           </section>
 
-          <section class="panel rpc-panel">
-            <div class="panel-heading">
-              <h2>RPC Matrix</h2>
-              <span id="rpc-count"></span>
-            </div>
-            <div id="rpc-coverage" class="rpc-grid"></div>
+          <section id="evidence" class="evidence-grid">
+            <section class="workspace-panel diff-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Before / after</span>
+                  <h2>Snapshot diff</h2>
+                </div>
+                <span id="diff-count"></span>
+              </div>
+              <div id="diff-summary" class="diff-summary"></div>
+              <div id="diff-metrics" class="diff-metrics"></div>
+              <div id="diff-findings" class="diff-findings"></div>
+            </section>
+
+            <section class="workspace-panel command-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Circular self-payment</span>
+                  <h2>Rebalance probe</h2>
+                </div>
+                <div class="heading-actions">
+                  <span id="rebalance-count"></span>
+                  <button id="copy-rebalance" class="mini-button" type="button">Copy</button>
+                </div>
+              </div>
+              <pre id="rebalance-output" class="code-block"></pre>
+            </section>
+
+            <section class="workspace-panel rpc-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Collected evidence</span>
+                  <h2>RPC coverage</h2>
+                </div>
+                <span id="rpc-count"></span>
+              </div>
+              <div id="rpc-coverage" class="rpc-grid"></div>
+            </section>
+
+            <section class="workspace-panel presets-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Documented peers</span>
+                  <h2>Public node presets</h2>
+                </div>
+                <div class="heading-actions">
+                  <span id="preset-count"></span>
+                  <button id="copy-preset" class="mini-button" type="button">Copy</button>
+                </div>
+              </div>
+              <div id="preset-list" class="preset-list"></div>
+              <pre id="preset-runbook" class="preset-runbook"></pre>
+            </section>
           </section>
-        </section>
-      </main>
+        </main>
+      </div>
+
+      <dialog id="live-dialog" class="live-dialog">
+        <div class="dialog-heading">
+          <div>
+            <span class="section-kicker">Local FNN endpoint</span>
+            <h2>Connect live RPC</h2>
+          </div>
+          <button id="close-live" class="close-button" type="button" aria-label="Close connection dialog">Close</button>
+        </div>
+        <div class="live-grid">
+          <label class="live-field live-rpc-field">
+            <span>RPC URL</span>
+            <input id="live-rpc-url" value="http://127.0.0.1:8227" spellcheck="false">
+          </label>
+          <label class="live-field">
+            <span>Biscuit token</span>
+            <input id="live-auth-token" type="password" placeholder="optional" spellcheck="false" autocomplete="off">
+          </label>
+          <label class="live-field live-target-field">
+            <span>Target pubkey</span>
+            <input id="live-target-pubkey" placeholder="optional" spellcheck="false">
+          </label>
+          <label class="live-field compact">
+            <span>Graph pages</span>
+            <input id="live-graph-pages" type="number" min="1" max="50" value="5">
+          </label>
+          <label class="live-toggle">
+            <input id="live-self-rebalance" type="checkbox" checked>
+            <span>Self rebalance probe</span>
+          </label>
+        </div>
+        <pre id="live-command" class="live-command"></pre>
+        <div class="dialog-actions">
+          <span>Credentials stay in memory and are never written to generated artifacts.</span>
+          <button id="collect-live" class="primary-action" type="button">Collect snapshot</button>
+        </div>
+      </dialog>
+
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
 
