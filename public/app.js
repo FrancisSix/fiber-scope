@@ -95,8 +95,8 @@ boot();
 
 async function boot() {
   const [baselineResponse, response, liveRpcAvailable] = await Promise.all([
-    fetch('../fixtures/no-peers-no-graph.json'),
-    fetch('../fixtures/unbalanced-route-failure.json'),
+    fetch('./fixtures/no-peers-no-graph.json'),
+    fetch('./fixtures/unbalanced-route-failure.json'),
     detectLocalCollector()
   ]);
   state.baselineSnapshot = await baselineResponse.json();
