@@ -28,6 +28,7 @@ That diagnostic loop is exactly where infrastructure teams lose time. FiberScope
 8. Snapshot diff for before/after peer setup, gossip catch-up, and route probing.
 9. Public-node presets that generate `connect_peer`, `open_channel`, and follow-up collection commands.
 10. Submission brief and reproducible CLI transcript for judges.
+11. Dashboard Live RPC Lab backed by a local `/api/collect` proxy.
 
 ## Demo Script
 
@@ -36,10 +37,11 @@ That diagnostic loop is exactly where infrastructure teams lose time. FiberScope
 3. Open the dashboard and show the same finding set.
 4. Show Snapshot Diff from fresh-node to route-probed node.
 5. Show Public Node Presets and generate a testnet bootstrap runbook.
-6. Export a report and diff.
-7. Open the CLI transcript and submission brief.
-8. Explain the generated circular rebalance dry-run payload.
-9. Optional: run `collect` against a local FNN node.
+6. Show the Live RPC Lab and the generated `collect` command.
+7. Export a report and diff.
+8. Open the CLI transcript and submission brief.
+9. Explain the generated circular rebalance dry-run payload.
+10. Optional: run `collect` against a local FNN node.
 
 ## Submission Checklist
 
@@ -51,8 +53,7 @@ That diagnostic loop is exactly where infrastructure teams lose time. FiberScope
 
 ## Stretch Ideas
 
-- Snapshot diff: before/after connecting to public nodes.
 - Route fee budget simulator.
 - WSS readiness checks for browser nodes.
-- Public-node preset command using Fiber docs pubkeys.
 - Watchtower readiness panel.
+- Confirmed route rehearsal using a local multi-node Fiber devnet.

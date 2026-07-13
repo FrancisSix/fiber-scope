@@ -22,6 +22,14 @@ const elements = {
   baselineFile: document.querySelector('#baseline-file'),
   amount: document.querySelector('#amount-input'),
   download: document.querySelector('#download-report'),
+  liveStatus: document.querySelector('#live-status'),
+  liveRpcUrl: document.querySelector('#live-rpc-url'),
+  liveAuthToken: document.querySelector('#live-auth-token'),
+  liveTargetPubkey: document.querySelector('#live-target-pubkey'),
+  liveGraphPages: document.querySelector('#live-graph-pages'),
+  liveSelfRebalance: document.querySelector('#live-self-rebalance'),
+  collectLive: document.querySelector('#collect-live'),
+  liveCommand: document.querySelector('#live-command'),
   status: document.querySelector('#status-pill'),
   score: document.querySelector('#score-value'),
   scoreRing: document.querySelector('#score-ring'),
@@ -69,11 +77,15 @@ async function boot() {
 }
 
 function wireEvents() {
-  elements.amount.addEventListener('input', render);
+  elements.amount.addEventListener('input', () => {
+    renderLiveCommand();
+    render();
+  });
   elements.file.addEventListener('change', async () => {
     const file = elements.file.files?.[0];
     if (!file) return;
     state.snapshot = JSON.parse(await file.text());
+    elements.liveStatus.textContent = 'uploaded snapshot';
     render();
   });
   elements.baselineFile.addEventListener('change', async () => {
@@ -97,6 +109,19 @@ function wireEvents() {
   elements.copyPreset.addEventListener('click', () => {
     copyText(elements.presetRunbook.textContent, 'Public-node runbook copied');
   });
+  elements.collectLive.addEventListener('click', collectLiveSnapshot);
+
+  for (const input of [
+    elements.liveRpcUrl,
+    elements.liveAuthToken,
+    elements.liveTargetPubkey,
+    elements.liveGraphPages,
+    elements.liveSelfRebalance
+  ]) {
+    input.addEventListener('input', renderLiveCommand);
+    input.addEventListener('change', renderLiveCommand);
+  }
+  renderLiveCommand();
 }
 
 function render() {
@@ -128,6 +153,89 @@ function render() {
   renderDiff(state.diff);
   renderPresets();
   renderRpc(inspection);
+  renderLiveCommand();
+}
+
+async function collectLiveSnapshot() {
+  const payload = liveCollectPayload();
+  if (!payload.rpcUrl) {
+    showToast('RPC URL required');
+    return;
+  }
+
+  elements.collectLive.disabled = true;
+  elements.collectLive.textContent = 'Collecting';
+  elements.liveStatus.textContent = 'collecting';
+
+  try {
+    const response = await fetch('/api/collect', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(body.error?.message ?? `Collector returned HTTP ${response.status}`);
+    }
+
+    state.baselineSnapshot = state.snapshot;
+    state.snapshot = body.snapshot;
+    elements.liveStatus.textContent = 'live snapshot';
+    render();
+    showToast('Live snapshot collected');
+  } catch (error) {
+    elements.liveStatus.textContent = 'collect failed';
+    showToast(error.message.slice(0, 120));
+  } finally {
+    elements.collectLive.disabled = false;
+    elements.collectLive.textContent = 'Collect Live';
+  }
+}
+
+function liveCollectPayload() {
+  const token = elements.liveAuthToken.value.trim();
+  return {
+    rpcUrl: elements.liveRpcUrl.value.trim(),
+    authToken: token || undefined,
+    graphLimit: 200,
+    graphPages: Number(elements.liveGraphPages.value || 5),
+    amount: elements.amount.value.trim() || undefined,
+    targetPubkey: elements.liveTargetPubkey.value.trim() || undefined,
+    selfRebalance: elements.liveSelfRebalance.checked
+  };
+}
+
+function renderLiveCommand() {
+  if (!elements.liveCommand) return;
+  const payload = liveCollectPayload();
+  const parts = [
+    'npm run fiber-scope -- collect',
+    '--rpc',
+    shellQuote(payload.rpcUrl || 'http://127.0.0.1:8227'),
+    '--out',
+    'snapshots/live-node.json',
+    '--graph-limit',
+    String(payload.graphLimit),
+    '--graph-pages',
+    String(payload.graphPages || 5)
+  ];
+
+  if (payload.amount) {
+    parts.push('--amount', shellQuote(payload.amount));
+  }
+  if (payload.authToken) {
+    parts.push('--auth-token', '<biscuit-token>');
+  }
+  if (payload.targetPubkey) {
+    parts.push('--target-pubkey', shellQuote(payload.targetPubkey));
+  }
+  if (payload.selfRebalance) {
+    parts.push('--self-rebalance');
+  }
+
+  elements.liveCommand.textContent = parts.join(' ');
 }
 
 function renderNodeFacts(inspection) {
@@ -348,4 +456,10 @@ function escapeHtml(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function shellQuote(value) {
+  const text = String(value ?? '');
+  if (/^[A-Za-z0-9_./:=@-]+$/.test(text)) return text;
+  return `"${text.replace(/(["\\$`])/g, '\\$1')}"`;
 }

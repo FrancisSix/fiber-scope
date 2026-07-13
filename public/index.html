@@ -36,6 +36,37 @@
       </header>
 
       <main class="dashboard">
+        <section class="panel live-panel">
+          <div class="panel-heading">
+            <h2>Live RPC Lab</h2>
+            <span id="live-status">fixture mode</span>
+          </div>
+          <div class="live-grid">
+            <label class="live-field live-rpc-field">
+              <span>RPC URL</span>
+              <input id="live-rpc-url" value="http://127.0.0.1:8227" spellcheck="false">
+            </label>
+            <label class="live-field">
+              <span>Biscuit token</span>
+              <input id="live-auth-token" type="password" placeholder="optional" spellcheck="false" autocomplete="off">
+            </label>
+            <label class="live-field live-target-field">
+              <span>Target pubkey</span>
+              <input id="live-target-pubkey" placeholder="optional" spellcheck="false">
+            </label>
+            <label class="live-field compact">
+              <span>Graph pages</span>
+              <input id="live-graph-pages" type="number" min="1" max="50" value="5">
+            </label>
+            <label class="live-toggle">
+              <input id="live-self-rebalance" type="checkbox" checked>
+              <span>Self rebalance</span>
+            </label>
+            <button id="collect-live" class="primary-action" type="button">Collect Live</button>
+          </div>
+          <pre id="live-command" class="live-command"></pre>
+        </section>
+
         <section class="command-deck">
           <div class="score-panel">
             <div class="score-ring" id="score-ring">

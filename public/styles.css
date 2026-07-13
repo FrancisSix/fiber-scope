@@ -47,6 +47,12 @@ button {
   color: var(--text);
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
 h1,
 h2,
 p {
@@ -187,6 +193,87 @@ button:hover {
 
 .dashboard {
   padding: clamp(16px, 3vw, 34px);
+}
+
+.live-panel {
+  margin-bottom: 14px;
+}
+
+.live-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 0.9fr) minmax(220px, 1.1fr) 116px minmax(128px, 0.55fr) 144px;
+  gap: 10px;
+  align-items: end;
+}
+
+.live-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.live-field span,
+.live-toggle span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.live-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 9px 11px;
+  color: var(--text);
+  background: rgba(4, 8, 12, 0.78);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  outline: none;
+}
+
+.live-field input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(40, 215, 210, 0.12);
+}
+
+.live-toggle {
+  min-height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 9px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.live-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cyan);
+}
+
+.primary-action {
+  border-color: rgba(40, 215, 210, 0.45);
+  background:
+    linear-gradient(180deg, rgba(40, 215, 210, 0.18), rgba(40, 215, 210, 0.07)),
+    var(--surface-strong);
+}
+
+.live-command {
+  margin: 12px 0 0;
+  border: 1px solid rgba(40, 215, 210, 0.18);
+  border-radius: var(--radius);
+  padding: 11px 12px;
+  color: #c7fff5;
+  background: rgba(5, 8, 13, 0.88);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  overflow: auto;
+  white-space: pre-wrap;
 }
 
 .command-deck {
@@ -948,6 +1035,10 @@ button:hover {
     grid-template-columns: 1fr 1fr;
   }
 
+  .live-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .command-deck {
     grid-template-areas:
       "score route"
@@ -995,8 +1086,15 @@ button:hover {
   .file-button,
   button,
   .amount-field,
-  .amount-field input {
+  .amount-field input,
+  .live-field,
+  .live-field input,
+  .live-toggle {
     width: 100%;
+  }
+
+  .live-grid {
+    grid-template-columns: 1fr;
   }
 
   .command-deck,

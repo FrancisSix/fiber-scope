@@ -18,6 +18,21 @@ The prototype has no runtime package dependencies; `npm install` only creates th
 
 License: MIT. See [`LICENSE`](LICENSE).
 
+## Competitive Demo Path
+
+FiberScope has two modes:
+
+- Fixture mode: deterministic snapshots for judges without a local Fiber node.
+- Live mode: the dashboard posts to the local `/api/collect` proxy, which collects from an FNN RPC endpoint and runs the same analyzer.
+
+Live dashboard collection:
+
+1. Run an FNN RPC endpoint locally, for example `http://127.0.0.1:8227`.
+2. Start FiberScope with `npm run dashboard`.
+3. Use the Live RPC Lab at the top of the dashboard.
+
+The live collector never stores Biscuit tokens in generated artifacts. The dashboard CLI preview uses `<biscuit-token>` instead of echoing the typed token.
+
 ## CLI
 
 ```bash
@@ -96,6 +111,11 @@ The diff command compares two snapshots and highlights peer, graph, liquidity, r
 Public-node presets generate v0.8 pubkey-based `connect_peer`, `open_channel`, and `list_channels` payloads for the documented Fiber mainnet/testnet public nodes. The generated follow-up command runs FiberScope collection after the node reaches `ChannelReady`.
 
 FiberScope follows the Fiber docs recommendation to run dry runs before real rebalances, and it generates a self-payment dry-run payload with `allow_self_payment: true`.
+
+The dashboard server also exposes:
+
+- `GET /api/health`
+- `POST /api/collect` with `rpcUrl`, optional `authToken`, `amount`, `targetPubkey`, `selfRebalance`, `graphLimit`, and `graphPages`
 
 ## Submission Pack
 
