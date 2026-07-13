@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "title": "Protected RPC missing graph and peer scopes",
+    "source": "fixture:auth-permission-error",
+    "capturedAt": "2026-07-13T15:40:00.000Z",
+    "requestedAmount": "0xee6b2800",
+    "network": "testnet"
+  },
+  "rpc": {
+    "node_info": {
+      "ok": true,
+      "result": {
+        "version": "0.8.0",
+        "pubkey": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "node_name": "protected-node",
+        "channel_count": "0x1",
+        "pending_channel_count": "0x0",
+        "peers_count": "0x1"
+      }
+    },
+    "list_peers": {
+      "ok": false,
+      "error": {
+        "code": -32001,
+        "message": "Biscuit authorization failed: missing read(\"peers\")"
+      }
+    },
+    "list_channels": {
+      "ok": true,
+      "result": {
+        "channels": [
+          {
+            "channel_id": "0x5555555555555555555555555555555555555555555555555555555555555555",
+            "is_public": true,
+            "channel_outpoint": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000",
+            "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "funding_udt_type_script": null,
+            "state": {
+              "state_name": "ChannelReady"
+            },
+            "local_balance": "0xdf8475800",
+            "remote_balance": "0x6fc23ac00",
+            "pending_tlcs": [],
+            "enabled": true,
+            "failure_detail": null
+          }
+        ]
+      }
+    },
+    "graph_nodes": {
+      "ok": false,
+      "error": {
+        "code": -32001,
+        "message": "Biscuit authorization failed: missing read(\"graph\")"
+      }
+    },
+    "graph_channels": {
+      "ok": false,
+      "error": {
+        "code": -32001,
+        "message": "Biscuit authorization failed: missing read(\"graph\")"
+      }
+    },
+    "send_payment_dry_run": {
+      "ok": false,
+      "error": {
+        "code": -32001,
+        "message": "Biscuit authorization failed: missing write(\"payments\")"
+      }
+    }
+  }
+}

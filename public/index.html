@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FiberScope</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/public/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <span class="brand-mark">FS</span>
+          <div>
+            <p class="eyebrow">Fiber Network Ops</p>
+            <h1>FiberScope</h1>
+          </div>
+        </div>
+
+        <div class="controls" aria-label="Snapshot controls">
+          <label class="amount-field">
+            <span>Probe amount</span>
+            <input id="amount-input" value="0x2540be400" spellcheck="false">
+          </label>
+          <label class="file-button">
+            <input id="snapshot-file" type="file" accept="application/json">
+            Load After
+          </label>
+          <label class="file-button">
+            <input id="baseline-file" type="file" accept="application/json">
+            Load Before
+          </label>
+          <button id="download-report" type="button">Export MD</button>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="command-deck">
+          <div class="score-panel">
+            <div class="score-ring" id="score-ring">
+              <strong id="score-value">--</strong>
+              <span>/100</span>
+            </div>
+            <div class="score-copy">
+              <span id="status-pill" class="status-pill">loading</span>
+              <h2 id="node-name">Loading snapshot</h2>
+              <p id="node-pubkey" class="mono muted">--</p>
+            </div>
+          </div>
+
+          <div class="metric-strip" id="metric-strip"></div>
+
+          <aside class="route-state">
+            <div class="panel-heading">
+              <h2>Route State</h2>
+              <span id="route-method">--</span>
+            </div>
+            <div class="route-verdict" id="route-verdict">waiting</div>
+            <p id="route-evidence" class="route-evidence">Snapshot loading.</p>
+            <div class="node-facts" id="node-facts"></div>
+          </aside>
+        </section>
+
+        <section class="workspace-grid">
+          <section class="panel findings-panel">
+            <div class="panel-heading">
+              <h2>Findings</h2>
+              <span id="finding-count"></span>
+            </div>
+            <div id="findings-list" class="findings-list"></div>
+          </section>
+
+          <section class="panel liquidity-panel">
+            <div class="panel-heading">
+              <h2>Liquidity Map</h2>
+              <span id="channel-count"></span>
+            </div>
+            <div class="liquidity-ledger">
+              <div class="ledger-head">
+                <span>Local</span>
+                <span>Remote</span>
+              </div>
+              <div id="channel-list" class="channel-list"></div>
+            </div>
+          </section>
+
+          <section class="panel command-panel">
+            <div class="panel-heading">
+              <h2>Rebalance Probe</h2>
+              <span id="rebalance-count"></span>
+            </div>
+            <pre id="rebalance-output" class="code-block"></pre>
+          </section>
+
+          <section class="panel diff-panel">
+            <div class="panel-heading">
+              <h2>Snapshot Diff</h2>
+              <span id="diff-count"></span>
+            </div>
+            <div id="diff-summary" class="diff-summary"></div>
+            <div id="diff-metrics" class="diff-metrics"></div>
+            <div id="diff-findings" class="diff-findings"></div>
+          </section>
+
+          <section class="panel presets-panel">
+            <div class="panel-heading">
+              <h2>Public Node Presets</h2>
+              <span id="preset-count"></span>
+            </div>
+            <div id="preset-list" class="preset-list"></div>
+            <pre id="preset-runbook" class="preset-runbook"></pre>
+          </section>
+
+          <section class="panel rpc-panel">
+            <div class="panel-heading">
+              <h2>RPC Matrix</h2>
+              <span id="rpc-count"></span>
+            </div>
+            <div id="rpc-coverage" class="rpc-grid"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/public/app.js"></script>
+  </body>
+</html>

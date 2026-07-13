@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "title": "Fresh node before peer and channel setup",
+    "source": "fixture:no-peers-no-graph",
+    "capturedAt": "2026-07-13T15:45:00.000Z",
+    "requestedAmount": "0xee6b2800",
+    "network": "testnet"
+  },
+  "rpc": {
+    "node_info": {
+      "ok": true,
+      "result": {
+        "version": "0.8.0",
+        "pubkey": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "node_name": "fresh-node",
+        "channel_count": "0x0",
+        "pending_channel_count": "0x0",
+        "peers_count": "0x0",
+        "features": [
+          "GOSSIP_QUERIES_REQUIRED"
+        ]
+      }
+    },
+    "list_peers": {
+      "ok": true,
+      "result": {
+        "peers": []
+      }
+    },
+    "list_channels": {
+      "ok": true,
+      "result": {
+        "channels": []
+      }
+    },
+    "graph_nodes": {
+      "ok": true,
+      "result": {
+        "nodes": [],
+        "last_cursor": "0x"
+      }
+    },
+    "graph_channels": {
+      "ok": true,
+      "result": {
+        "channels": [],
+        "last_cursor": "0x"
+      }
+    }
+  }
+}

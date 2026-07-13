@@ -1,0 +1,21 @@
+{
+  "name": "fiber-scope",
+  "version": "0.1.0",
+  "description": "Fiber Network node diagnostics, route readiness, and liquidity rebalance prototype.",
+  "type": "module",
+  "bin": {
+    "fiber-scope": "./src/cli.js"
+  },
+  "scripts": {
+    "fiber-scope": "node ./src/cli.js",
+    "dashboard": "node ./scripts/serve.js",
+    "demo:transcript": "node ./scripts/demo-transcript.js",
+    "start": "node ./scripts/serve.js",
+    "test": "node --test",
+    "verify": "node ./scripts/verify.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

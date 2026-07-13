@@ -1,0 +1,151 @@
+{
+  "meta": {
+    "title": "Unbalanced channels with route dry-run failure",
+    "source": "fixture:unbalanced-route-failure",
+    "capturedAt": "2026-07-13T15:30:00.000Z",
+    "requestedAmount": "0x2540be400",
+    "network": "testnet"
+  },
+  "intent": {
+    "amount": "0x2540be400",
+    "targetPubkey": "02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "rpc": {
+    "node_info": {
+      "ok": true,
+      "result": {
+        "version": "0.8.0",
+        "commit_hash": "04e091b0",
+        "pubkey": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "features": [
+          "GOSSIP_QUERIES_REQUIRED",
+          "BASIC_MPP_REQUIRED"
+        ],
+        "node_name": "alpha-operator",
+        "addresses": [
+          "/ip4/127.0.0.1/tcp/8228"
+        ],
+        "chain_hash": "0x10639e0895502b5688a6be8cf69460d76541bfa4821629d86d62ba0aae3f9606",
+        "channel_count": "0x2",
+        "pending_channel_count": "0x0",
+        "peers_count": "0x2",
+        "tlc_fee_proportional_millionths": "0x3e8"
+      }
+    },
+    "list_peers": {
+      "ok": true,
+      "result": {
+        "peers": [
+          {
+            "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "address": "/ip4/18.163.221.211/tcp/8119"
+          },
+          {
+            "pubkey": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "address": "/ip4/18.167.12.44/tcp/8119"
+          }
+        ]
+      }
+    },
+    "list_channels": {
+      "ok": true,
+      "result": {
+        "channels": [
+          {
+            "channel_id": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "is_public": true,
+            "is_acceptor": false,
+            "is_one_way": false,
+            "channel_outpoint": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000",
+            "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "funding_udt_type_script": null,
+            "state": {
+              "state_name": "ChannelReady"
+            },
+            "local_balance": "0x14f46b0400",
+            "offered_tlc_balance": "0x0",
+            "remote_balance": "0x2540be400",
+            "received_tlc_balance": "0x0",
+            "pending_tlcs": [],
+            "enabled": true,
+            "tlc_expiry_delta": "0x5265c00",
+            "tlc_fee_proportional_millionths": "0x3e8",
+            "failure_detail": null
+          },
+          {
+            "channel_id": "0x2222222222222222222222222222222222222222222222222222222222222222",
+            "is_public": true,
+            "is_acceptor": false,
+            "is_one_way": false,
+            "channel_outpoint": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000",
+            "pubkey": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "funding_udt_type_script": null,
+            "state": {
+              "state_name": "ChannelReady"
+            },
+            "local_balance": "0xee6b2800",
+            "offered_tlc_balance": "0x0",
+            "remote_balance": "0x11b1f3f800",
+            "received_tlc_balance": "0x0",
+            "pending_tlcs": [],
+            "enabled": true,
+            "tlc_expiry_delta": "0x5265c00",
+            "tlc_fee_proportional_millionths": "0x3e8",
+            "failure_detail": null
+          }
+        ]
+      }
+    },
+    "graph_nodes": {
+      "ok": true,
+      "result": {
+        "nodes": [
+          {
+            "pubkey": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node_name": "alpha-operator"
+          },
+          {
+            "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "node_name": "public-bottle"
+          },
+          {
+            "pubkey": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "node_name": "public-bracer"
+          }
+        ],
+        "last_cursor": "0x03"
+      }
+    },
+    "graph_channels": {
+      "ok": true,
+      "result": {
+        "channels": [
+          {
+            "channel_outpoint": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000",
+            "node1": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node2": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "capacity": "0x174876e800",
+            "chain_hash": "0x10639e0895502b5688a6be8cf69460d76541bfa4821629d86d62ba0aae3f9606",
+            "udt_type_script": null
+          },
+          {
+            "channel_outpoint": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000",
+            "node1": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node2": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "capacity": "0x12a05f2000",
+            "chain_hash": "0x10639e0895502b5688a6be8cf69460d76541bfa4821629d86d62ba0aae3f9606",
+            "udt_type_script": null
+          }
+        ],
+        "last_cursor": "0x02"
+      }
+    },
+    "send_payment_dry_run": {
+      "ok": false,
+      "error": {
+        "code": -32000,
+        "message": "No router could be built for amount 0x2540be400: insufficient outbound capacity on selected first hop"
+      }
+    }
+  }
+}

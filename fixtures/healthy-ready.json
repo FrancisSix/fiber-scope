@@ -1,0 +1,175 @@
+{
+  "meta": {
+    "title": "Healthy node with successful dry run",
+    "source": "fixture:healthy-ready",
+    "capturedAt": "2026-07-13T15:35:00.000Z",
+    "requestedAmount": "0xee6b2800",
+    "network": "testnet"
+  },
+  "intent": {
+    "amount": "0xee6b2800",
+    "targetPubkey": "02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "rpc": {
+    "node_info": {
+      "ok": true,
+      "result": {
+        "version": "0.8.0",
+        "commit_hash": "04e091b0",
+        "pubkey": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "features": [
+          "GOSSIP_QUERIES_REQUIRED",
+          "BASIC_MPP_REQUIRED",
+          "TRAMPOLINE_ROUTING_REQUIRED"
+        ],
+        "node_name": "ready-router",
+        "addresses": [
+          "/ip4/127.0.0.1/tcp/8228"
+        ],
+        "chain_hash": "0x10639e0895502b5688a6be8cf69460d76541bfa4821629d86d62ba0aae3f9606",
+        "channel_count": "0x2",
+        "pending_channel_count": "0x0",
+        "peers_count": "0x3"
+      }
+    },
+    "list_peers": {
+      "ok": true,
+      "result": {
+        "peers": [
+          {
+            "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "address": "/ip4/18.163.221.211/tcp/8119"
+          },
+          {
+            "pubkey": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "address": "/ip4/18.167.12.44/tcp/8119"
+          },
+          {
+            "pubkey": "02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "address": "/ip4/3.112.5.9/tcp/8119"
+          }
+        ]
+      }
+    },
+    "list_channels": {
+      "ok": true,
+      "result": {
+        "channels": [
+          {
+            "channel_id": "0x3333333333333333333333333333333333333333333333333333333333333333",
+            "is_public": true,
+            "channel_outpoint": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc00000000",
+            "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "funding_udt_type_script": null,
+            "state": {
+              "state_name": "ChannelReady"
+            },
+            "local_balance": "0xdf8475800",
+            "remote_balance": "0x6fc23ac00",
+            "pending_tlcs": [],
+            "enabled": true,
+            "tlc_fee_proportional_millionths": "0x3e8",
+            "failure_detail": null
+          },
+          {
+            "channel_id": "0x4444444444444444444444444444444444444444444444444444444444444444",
+            "is_public": true,
+            "channel_outpoint": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd00000000",
+            "pubkey": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "funding_udt_type_script": null,
+            "state": {
+              "state_name": "ChannelReady"
+            },
+            "local_balance": "0x6fc23ac00",
+            "remote_balance": "0xdf8475800",
+            "pending_tlcs": [],
+            "enabled": true,
+            "tlc_fee_proportional_millionths": "0x3e8",
+            "failure_detail": null
+          }
+        ]
+      }
+    },
+    "graph_nodes": {
+      "ok": true,
+      "result": {
+        "nodes": [
+          {
+            "pubkey": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          {
+            "pubkey": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "pubkey": "02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ],
+        "last_cursor": "0x04"
+      }
+    },
+    "graph_channels": {
+      "ok": true,
+      "result": {
+        "channels": [
+          {
+            "channel_outpoint": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc00000000",
+            "node1": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node2": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "capacity": "0x14f46b0400",
+            "udt_type_script": null
+          },
+          {
+            "channel_outpoint": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd00000000",
+            "node1": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "node2": "02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "capacity": "0x14f46b0400",
+            "udt_type_script": null
+          },
+          {
+            "channel_outpoint": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000",
+            "node1": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "node2": "02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "capacity": "0xdf8475800",
+            "udt_type_script": null
+          }
+        ],
+        "last_cursor": "0x03"
+      }
+    },
+    "send_payment_dry_run": {
+      "ok": true,
+      "result": {
+        "payment_hash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "status": "Created",
+        "created_at": "0x19d7301e572",
+        "last_updated_at": "0x19d7301e572",
+        "failed_error": null,
+        "fee": "0x186a0",
+        "routers": [
+          {
+            "nodes": [
+              {
+                "pubkey": "02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "amount": "0xee6b2800",
+                "channel_outpoint": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc00000000"
+              },
+              {
+                "pubkey": "03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "amount": "0xee7dafa0",
+                "channel_outpoint": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000"
+              },
+              {
+                "pubkey": "02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "amount": "0xee6b2800",
+                "channel_outpoint": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
