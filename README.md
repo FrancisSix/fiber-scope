@@ -2,7 +2,7 @@
 
 FiberScope is a diagnostic console for Fiber Network nodes. It collects FNN JSON-RPC state, evaluates payment readiness, identifies operational failures, and produces a review-only remediation runbook.
 
-[Hosted demo](https://francissix.github.io/fiber-scope/) | [Submission brief](SUBMISSION.md) | [Live validation](docs/LIVE_VALIDATION.md)
+[Hosted demo](https://francissix.github.io/fiber-scope/) | [Judge test flow](docs/JUDGE_TEST_FLOW.md) | [Submission brief](SUBMISSION.md) | [Live validation](docs/LIVE_VALIDATION.md)
 
 ![FiberScope operator console](docs/ui-desktop.png)
 
@@ -89,6 +89,7 @@ npm run fiber-scope -- presets --network testnet
 
 Generated reference artifacts:
 
+- [Judge test flow and screenshots](docs/JUDGE_TEST_FLOW.md)
 - [Diagnostic report](docs/demo-report.md)
 - [Snapshot diff](docs/demo-diff.md)
 - [Operator runbook](docs/demo-runbook.md)

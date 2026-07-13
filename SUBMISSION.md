@@ -62,6 +62,7 @@ Architecture and commands are documented in [README.md](README.md). Security bou
 
 ## Evidence
 
+- [Judge test flow and screenshots](docs/JUDGE_TEST_FLOW.md)
 - [Live public-node validation](docs/LIVE_VALIDATION.md)
 - [CLI transcript](docs/demo-transcript.md)
 - [Diagnostic report](docs/demo-report.md)
