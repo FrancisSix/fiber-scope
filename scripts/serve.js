@@ -6,7 +6,6 @@ import { collectSnapshot } from '../src/rpc.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const port = Number(process.env.PORT ?? process.argv[2] ?? 4173);
 const maxBodyBytes = 64 * 1024;
 
 const types = {
@@ -19,9 +18,11 @@ const types = {
 
 export function createServer(options = {}) {
   const rootDir = path.resolve(options.rootDir ?? root);
+  const apiEnabled = options.apiEnabled !== false;
+  const indexPath = options.indexPath ?? '/public/index.html';
   return http.createServer(async (request, response) => {
     try {
-      await handleRequest(request, response, rootDir);
+      await handleRequest(request, response, { rootDir, apiEnabled, indexPath });
     } catch (error) {
       writeJson(response, 500, {
         ok: false,
@@ -33,10 +34,10 @@ export function createServer(options = {}) {
   });
 }
 
-async function handleRequest(request, response, rootDir) {
+async function handleRequest(request, response, options) {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
 
-  if (url.pathname === '/api/health') {
+  if (options.apiEnabled && url.pathname === '/api/health') {
     writeJson(response, 200, {
       ok: true,
       product: 'FiberScope'
@@ -44,7 +45,7 @@ async function handleRequest(request, response, rootDir) {
     return;
   }
 
-  if (url.pathname === '/api/collect') {
+  if (options.apiEnabled && url.pathname === '/api/collect') {
     await handleCollect(request, response);
     return;
   }
@@ -59,10 +60,10 @@ async function handleRequest(request, response, rootDir) {
     return;
   }
 
-  const pathname = url.pathname === '/' ? '/public/index.html' : url.pathname;
-  const resolved = path.resolve(rootDir, `.${decodeURIComponent(pathname)}`);
+  const pathname = url.pathname === '/' ? options.indexPath : url.pathname;
+  const resolved = path.resolve(options.rootDir, `.${decodeURIComponent(pathname)}`);
 
-  if (!isInside(resolved, rootDir)) {
+  if (!isInside(resolved, options.rootDir)) {
     response.writeHead(403);
     response.end('Forbidden');
     return;
@@ -214,9 +215,19 @@ function isInside(file, rootDir) {
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  const server = createServer();
+  const args = process.argv.slice(2);
+  const staticMode = args.includes('--static');
+  const positional = args.filter((arg) => !arg.startsWith('--'));
+  const port = Number(process.env.PORT ?? positional[0] ?? 4173);
+  const rootDir = staticMode ? path.resolve(positional[1] ?? 'dist') : root;
+  const server = createServer({
+    rootDir,
+    apiEnabled: !staticMode,
+    indexPath: staticMode ? '/index.html' : '/public/index.html'
+  });
 
-  server.listen(port, () => {
-    console.log(`FiberScope dashboard: http://127.0.0.1:${port}/`);
+  server.listen(port, '127.0.0.1', () => {
+    const mode = staticMode ? 'static preview' : 'dashboard';
+    console.log(`FiberScope ${mode}: http://127.0.0.1:${port}/`);
   });
 }

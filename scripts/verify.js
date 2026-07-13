@@ -11,7 +11,8 @@ const commands = [
   [node, ['./src/cli.js', 'runbook', '--snapshot', 'fixtures/unbalanced-route-failure.json', '--rpc', 'http://127.0.0.1:8227', '--out', 'docs/demo-runbook.md']],
   [node, ['./src/cli.js', 'report', '--snapshot', 'fixtures/unbalanced-route-failure.json', '--out', 'docs/demo-report.md']],
   [node, ['./src/cli.js', 'diff', '--before', 'fixtures/no-peers-no-graph.json', '--after', 'fixtures/unbalanced-route-failure.json', '--out', 'docs/demo-diff.md']],
-  [node, ['./scripts/demo-transcript.js']]
+  [node, ['./scripts/demo-transcript.js']],
+  [node, ['./scripts/build-static.js']]
 ];
 
 for (const [command, args] of commands) {

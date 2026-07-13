@@ -1,39 +1,80 @@
 # FiberScope
 
-FiberScope is a hackathon prototype for Fiber Network operators. It turns FNN RPC snapshots into route-readiness evidence and an ordered remediation runbook: peer health, channel state, visible graph, dry-run payment failures, Biscuit scope issues, and circular rebalance candidates.
+FiberScope is a diagnostic console for Fiber Network nodes. It collects FNN JSON-RPC state, evaluates payment readiness, identifies operational failures, and produces a review-only remediation runbook.
 
-The gap: Fiber already exposes the primitives needed to operate a node, but the operator has to stitch together `node_info`, `list_peers`, `list_channels`, `graph_channels`, `send_payment` dry runs, and the rebalancing docs by hand. FiberScope makes that failure path reviewable in one CLI and dashboard.
+[Hosted demo](https://francissix.github.io/fiber-scope/) | [Submission brief](SUBMISSION.md) | [Live validation](docs/LIVE_VALIDATION.md)
+
+![FiberScope operator console](docs/ui-desktop.png)
+
+## Problem
+
+Fiber exposes node, peer, channel, graph, and payment RPCs, but operators must correlate those responses manually when a route fails. The same symptom can come from peer loss, channels that are not ready, thin outbound liquidity, stale graph state, route construction, or missing Biscuit scopes.
+
+FiberScope converts that evidence into one stable diagnostic contract shared by the CLI, dashboard, Markdown reports, readiness gate, and remediation runbook.
+
+## Capabilities
+
+| Surface | Implementation |
+| --- | --- |
+| Collection | `node_info`, `list_peers`, `list_channels`, bounded `graph_nodes` and `graph_channels`, optional payment dry run |
+| Diagnostics | Stable finding IDs, severity, evidence, operator action, payment-readiness score |
+| Automation | Strict readiness gate with exit code `2` on failure |
+| Remediation | Ordered, safety-labeled, review-only RPC and CLI steps with success criteria |
+| Liquidity | Outbound capacity checks and circular self-payment rebalance candidates |
+| Evidence | Before/after diff, Markdown report, runbook export, RPC coverage |
+| UI | Responsive route topology, findings, liquidity, gate, runbook, and snapshot upload |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  F["Deterministic fixtures"] --> UI["Browser console"]
+  S["Uploaded snapshot"] --> UI
+  UI --> C["Shared analyzer"]
+  CLI["Node.js CLI"] --> C
+  C --> O["Findings, gate, diff, runbook"]
+  CLI --> P["Local collector proxy"]
+  UI --> P
+  P --> R["FNN JSON-RPC"]
+```
+
+The hosted demo is static and fixture-backed. Live RPC collection is available only through the local server, which binds to `127.0.0.1`.
 
 ## Quick Start
 
+Requires Node.js 20 or newer. There are no runtime package dependencies.
+
 ```bash
-npm install
+git clone https://github.com/FrancisSix/fiber-scope.git
+cd fiber-scope
 npm run verify
 npm run dashboard
 ```
 
-Dashboard: `http://127.0.0.1:4173/`
+Open `http://127.0.0.1:4173/`.
 
-The prototype has no runtime package dependencies; `npm install` only creates the local package metadata.
+## Live Collection
 
-License: MIT. See [`LICENSE`](LICENSE).
+Start FiberScope locally, open **Connect RPC**, and provide an FNN endpoint. The equivalent CLI command is:
 
-## Competitive Demo Path
+```bash
+npm run fiber-scope -- collect \
+  --rpc http://127.0.0.1:8227 \
+  --out snapshots/node.json \
+  --graph-limit 200 \
+  --graph-pages 5
+```
 
-FiberScope has two modes:
+Protected endpoint:
 
-- Fixture mode: deterministic snapshots for judges without a local Fiber node.
-- Live mode: the dashboard posts to the local `/api/collect` proxy, which collects from an FNN RPC endpoint and runs the same analyzer.
+```bash
+npm run fiber-scope -- collect \
+  --rpc http://127.0.0.1:8227 \
+  --auth-token <biscuit-token> \
+  --out snapshots/node.json
+```
 
-The topology-led dashboard renders the observed `graph_nodes` and `graph_channels` state, highlights the local node and payment target, and attaches route dry-run evidence directly to that graph. RPC credentials and collection controls stay in a separate connection dialog so the operator decision remains the primary view.
-
-Live dashboard collection:
-
-1. Run an FNN RPC endpoint locally, for example `http://127.0.0.1:8227`.
-2. Start FiberScope with `npm run dashboard`.
-3. Use the Live RPC Lab at the top of the dashboard.
-
-The live collector never stores Biscuit tokens in generated artifacts. The dashboard CLI preview uses `<biscuit-token>` instead of echoing the typed token.
+Use `--amount`, `--target-pubkey`, or `--self-rebalance` to capture a `send_payment` request with `dry_run: true`. FiberScope never submits a real payment.
 
 ## CLI
 
@@ -41,99 +82,57 @@ The live collector never stores Biscuit tokens in generated artifacts. The dashb
 npm run fiber-scope -- fixtures
 npm run fiber-scope -- inspect --snapshot fixtures/unbalanced-route-failure.json
 npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json
-npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json --rpc http://127.0.0.1:8227
-npm run fiber-scope -- runbook --snapshot fixtures/no-peers-no-graph.json --bootstrap-node fiber-testnet-public-bottle --out docs/fresh-node-runbook.md
-npm run fiber-scope -- report --snapshot fixtures/unbalanced-route-failure.json --out reports/demo-report.md
+npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json
 npm run fiber-scope -- diff --before fixtures/no-peers-no-graph.json --after fixtures/unbalanced-route-failure.json
 npm run fiber-scope -- presets --network testnet
-npm run fiber-scope -- presets --node fiber-testnet-public-bottle --rpc http://127.0.0.1:8227
 ```
 
-Demo artifact: [`docs/demo-report.md`](docs/demo-report.md).
+Generated reference artifacts:
 
-Diff artifact: [`docs/demo-diff.md`](docs/demo-diff.md).
+- [Diagnostic report](docs/demo-report.md)
+- [Snapshot diff](docs/demo-diff.md)
+- [Operator runbook](docs/demo-runbook.md)
+- [CLI transcript](docs/demo-transcript.md)
 
-Operator runbook artifact: [`docs/demo-runbook.md`](docs/demo-runbook.md).
+## Diagnostic Contract
 
-Submission brief: [`SUBMISSION.md`](SUBMISSION.md).
-
-CLI transcript: [`docs/demo-transcript.md`](docs/demo-transcript.md).
-
-Collect from a local FNN RPC endpoint:
-
-```bash
-npm run fiber-scope -- collect \
-  --rpc http://127.0.0.1:8227 \
-  --out snapshots/node.json \
-  --graph-limit 200 \
-  --graph-pages 5 \
-  --amount 0x2540be400 \
-  --self-rebalance
-```
-
-For protected RPC endpoints:
-
-```bash
-npm run fiber-scope -- collect \
-  --rpc http://127.0.0.1:8227 \
-  --auth-token <biscuit-token> \
-  --out snapshots/protected-node.json
-```
-
-## What It Detects
-
-| Fingerprint | Gap |
+| Finding | Condition |
 | --- | --- |
 | `FS-PEER-NONE-001` | no connected Fiber peers |
 | `FS-CHANNEL-NONE-001` | no payment channels |
-| `FS-LIQUIDITY-OUTBOUND-LOW-001` | ready channels cannot carry the requested first hop amount |
-| `FS-GOSSIP-CATCHUP-001` | peer/channel state exists but public graph is empty |
-| `FS-ROUTE-DRYRUN-FAILED-001` | `send_payment` dry run or `build_router` failed |
-| `FS-REBALANCE-CANDIDATE-001` | one outbound-heavy and one inbound-heavy channel can be probed with a circular self-payment |
+| `FS-CHANNEL-PENDING-001` | channels have not reached `ChannelReady` |
+| `FS-CHANNEL-FAILED-001` | channel failure details are present |
+| `FS-LIQUIDITY-OUTBOUND-LOW-001` | ready channels cannot carry the requested first hop |
+| `FS-GOSSIP-CATCHUP-001` | peer/channel state exists but public graph data is absent |
+| `FS-ROUTE-DRYRUN-FAILED-001` | payment dry run or route construction failed |
+| `FS-REBALANCE-CANDIDATE-001` | a circular self-payment can be dry-run across imbalanced channels |
 | `FS-AUTH-SCOPE-001` | Biscuit token lacks diagnostic read scopes |
-| `FS-MIGRATION-PUBKEY-001` | snapshot hints at pre-v0.8 `peer_id` RPC usage |
+| `FS-MIGRATION-PUBKEY-001` | snapshot indicates legacy `peer_id` usage |
 
-## Hackathon Fit
+## Safety Boundary
 
-Primary track: Diagnostics & Visualization.
+- The hosted build contains no RPC proxy.
+- The local server listens on loopback only.
+- Biscuit tokens remain in memory and are excluded from snapshots, reports, and command previews.
+- Generated write operations require approval and are never executed by FiberScope.
+- Payment and rebalance probes always set `dry_run: true`.
 
-Secondary tracks: Routing & Liquidity, SDKs & Developer Tools.
+See [SECURITY.md](SECURITY.md) for the full boundary.
 
-The prototype is infrastructure-focused: it helps node operators, public node providers, wallet teams, and SDK builders understand why a Fiber payment path is not ready before they send a real payment.
-
-## Fiber RPCs Used
-
-- `node_info`
-- `list_peers`
-- `list_channels`
-- `graph_nodes`
-- `graph_channels`
-- optional `send_payment` with `dry_run: true`
-- optional `build_router`
-
-The live collector follows `last_cursor` for `graph_nodes` and `graph_channels` with bounded pagination. Use `--graph-limit` to control page size and `--graph-pages` to cap collection time.
-
-The diff command compares two snapshots and highlights peer, graph, liquidity, route, and finding changes. It is useful for showing a node before and after connecting to public nodes or waiting for gossip catch-up.
-
-The gate command turns a snapshot into an automation-friendly payment-readiness decision. By default it requires score >= 90, status `ready`, a successful route dry run, no warning/critical findings, and required RPC evidence. It exits with code `2` when the gate fails, making it useful for CI, cron checks, and post-bootstrap scripts.
-
-The runbook command turns failed findings into ordered operator actions. Each step records its trigger, required Biscuit scope, safety class, approval requirement, exact Fiber RPC or CLI payload, and a measurable success condition. It can generate `connect_peer`, `open_channel`, `update_channel`, graph checks, and `send_payment` dry runs. The policy is review-only: FiberScope never executes a generated step and never emits a real payment request.
-
-Public-node presets generate v0.8 pubkey-based `connect_peer`, `open_channel`, and `list_channels` payloads for the documented Fiber mainnet/testnet public nodes. The generated follow-up command runs FiberScope collection after the node reaches `ChannelReady`.
-
-FiberScope follows the Fiber docs recommendation to run dry runs before real rebalances, and it generates a self-payment dry-run payload with `allow_self_payment: true`.
-
-The dashboard server also exposes:
-
-- `GET /api/health`
-- `POST /api/collect` with `rpcUrl`, optional `authToken`, `amount`, `targetPubkey`, `selfRebalance`, `graphLimit`, and `graphPages`
-
-## Submission Pack
-
-Run:
+## Verification
 
 ```bash
 npm run verify
 ```
 
-This refreshes the report, diff, operator runbook, and CLI transcript used by [`SUBMISSION.md`](SUBMISSION.md).
+This runs 24 tests, exercises CLI workflows, regenerates demo artifacts, and builds the static site. The collector was also exercised against the Fiber documentation's public node running FNN `0.9.0-rc7`; see [live validation](docs/LIVE_VALIDATION.md).
+
+## Project Status
+
+Implemented: collection, analysis, gate, diff, runbook generation, fixture/static demo, local live dashboard, exports, tests, and CI deployment.
+
+Not implemented: historical storage, autonomous remediation, real payment execution, or an internal route simulator. These are deliberate production boundaries, not mocked UI actions.
+
+Hackathon category: **Node, Routing, Cross-Chain, and Diagnostics Infrastructure**.
+
+License: [MIT](LICENSE).

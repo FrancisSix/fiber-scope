@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/FrancisSix/fiber-scope.git"
   },
-  "homepage": "https://github.com/FrancisSix/fiber-scope#readme",
+  "homepage": "https://francissix.github.io/fiber-scope/",
   "bugs": {
     "url": "https://github.com/FrancisSix/fiber-scope/issues"
   },
@@ -24,9 +24,11 @@
     "fiber-scope": "./src/cli.js"
   },
   "scripts": {
+    "build:static": "node ./scripts/build-static.js",
     "fiber-scope": "node ./src/cli.js",
     "dashboard": "node ./scripts/serve.js",
     "demo:transcript": "node ./scripts/demo-transcript.js",
+    "preview:static": "node ./scripts/serve.js 4174 dist --static",
     "start": "node ./scripts/serve.js",
     "test": "node --test",
     "verify": "node ./scripts/verify.js"

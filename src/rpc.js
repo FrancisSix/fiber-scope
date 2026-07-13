@@ -120,7 +120,7 @@ async function collectGraphPages(call, options) {
   let truncated = false;
 
   for (let page = 0; page < maxPages; page += 1) {
-    const params = removeUndefined({ limit, after });
+    const params = removeUndefined({ limit: toRpcHex(limit), after });
     const response = await call(options.method, [params]);
     if (!response.ok) return response;
 
@@ -166,4 +166,8 @@ function required(value, name) {
 
 function removeUndefined(object) {
   return Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
+}
+
+function toRpcHex(value) {
+  return `0x${Math.max(0, Math.trunc(Number(value))).toString(16)}`;
 }

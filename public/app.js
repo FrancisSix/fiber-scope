@@ -19,7 +19,8 @@ const state = {
   inspection: null,
   diff: null,
   runbook: null,
-  selectedRunbookStepId: null
+  selectedRunbookStepId: null,
+  liveRpcAvailable: false
 };
 
 const elements = {
@@ -93,15 +94,46 @@ let topologyResizeObserver;
 boot();
 
 async function boot() {
-  const [baselineResponse, response] = await Promise.all([
+  const [baselineResponse, response, liveRpcAvailable] = await Promise.all([
     fetch('../fixtures/no-peers-no-graph.json'),
-    fetch('../fixtures/unbalanced-route-failure.json')
+    fetch('../fixtures/unbalanced-route-failure.json'),
+    detectLocalCollector()
   ]);
   state.baselineSnapshot = await baselineResponse.json();
   state.snapshot = await response.json();
+  state.liveRpcAvailable = liveRpcAvailable;
   wireEvents();
+  renderRuntimeMode();
   observeTopology();
   render();
+}
+
+async function detectLocalCollector() {
+  try {
+    const response = await fetch(new URL('api/health', document.baseURI), {
+      headers: { accept: 'application/json' }
+    });
+    if (!response.ok) return false;
+    const body = await response.json();
+    return body.ok === true && body.product === 'FiberScope';
+  } catch {
+    return false;
+  }
+}
+
+function renderRuntimeMode() {
+  if (state.liveRpcAvailable) {
+    elements.openLive.textContent = 'Connect RPC';
+    elements.openLive.title = 'Connect through the local FiberScope collector';
+    elements.liveStatus.textContent = 'Fixture mode';
+    return;
+  }
+
+  elements.openLive.textContent = 'Local RPC only';
+  elements.openLive.title = 'Run npm run dashboard locally to connect an FNN RPC endpoint';
+  elements.openLive.disabled = true;
+  elements.collectLive.disabled = true;
+  elements.liveStatus.textContent = 'Hosted fixture demo';
 }
 
 function wireEvents() {
@@ -137,6 +169,7 @@ function wireEvents() {
     URL.revokeObjectURL(link.href);
   });
   elements.openLive.addEventListener('click', () => {
+    if (!state.liveRpcAvailable) return;
     elements.liveDialog.showModal();
   });
   elements.closeLive.addEventListener('click', () => {
@@ -225,6 +258,11 @@ function render() {
 }
 
 async function collectLiveSnapshot() {
+  if (!state.liveRpcAvailable) {
+    showToast('Live RPC collection is available in the local dashboard');
+    return;
+  }
+
   const payload = liveCollectPayload();
   if (!payload.rpcUrl) {
     showToast('RPC URL required');
@@ -236,7 +274,7 @@ async function collectLiveSnapshot() {
   elements.liveStatus.textContent = 'collecting';
 
   try {
-    const response = await fetch('/api/collect', {
+    const response = await fetch(new URL('api/collect', document.baseURI), {
       method: 'POST',
       headers: {
         'content-type': 'application/json'

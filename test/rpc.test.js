@@ -38,12 +38,12 @@ test('collects paginated graph nodes and channels', async () => {
     const graphNodeCalls = calls.filter((call) => call.method === 'graph_nodes');
     const graphChannelCalls = calls.filter((call) => call.method === 'graph_channels');
     assert.deepEqual(graphNodeCalls.map((call) => call.params[0]), [
-      { limit: 2 },
-      { limit: 2, after: 'node-cursor-2' }
+      { limit: '0x2' },
+      { limit: '0x2', after: 'node-cursor-2' }
     ]);
     assert.deepEqual(graphChannelCalls.map((call) => call.params[0]), [
-      { limit: 2 },
-      { limit: 2, after: 'channel-cursor-2' }
+      { limit: '0x2' },
+      { limit: '0x2', after: 'channel-cursor-2' }
     ]);
   } finally {
     globalThis.fetch = originalFetch;

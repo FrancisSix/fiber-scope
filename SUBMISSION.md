@@ -1,79 +1,89 @@
-# FiberScope Hackathon Submission
+# FiberScope Submission
 
-## One-liner
+## Entry
 
-FiberScope is a Fiber Network operator cockpit that turns FNN RPC snapshots into route-readiness diagnostics, safety-labeled remediation runbooks, and before/after progress reports.
+| Field | Value |
+| --- | --- |
+| Project | FiberScope |
+| Category | **Node, Routing, Cross-Chain, and Diagnostics Infrastructure** |
+| Team | FrancisSix, solo |
+| Repository | https://github.com/FrancisSix/fiber-scope |
+| Hosted demo | https://francissix.github.io/fiber-scope/ |
+| Demo video | Pending recording and upload |
+| License | MIT |
 
-## Track Fit
+## Summary
 
-Primary track: Diagnostics & Visualization.
+FiberScope is a diagnostic console for Fiber Network operators. It collects FNN JSON-RPC state and turns it into route-readiness findings, an automation gate, a before/after diff, and an ordered remediation runbook.
 
-Secondary tracks: Routing & Liquidity, SDKs & Developer Tools.
+The hosted build gives judges a deterministic fixture-backed review path. Running the project locally enables live collection from an operator-selected FNN endpoint through the same analyzer.
 
-## The Gap
+## Gap
 
-Fiber exposes the right primitives, but operators still have to manually correlate node state, peers, channels, graph visibility, dry-run payment errors, Biscuit auth scopes, and public-node setup docs. FiberScope compresses that workflow into one CLI and dashboard.
+Fiber exposes the required primitives, but failed payments still require manual correlation across node state, peers, channels, graph visibility, liquidity, route dry runs, and Biscuit authorization. Existing RPC output identifies state; it does not produce a prioritized diagnosis or a safety-labeled recovery plan.
 
-## What To Review
+FiberScope closes that operational gap without taking custody of funds or executing remediation.
 
-- Dashboard: `npm run dashboard`, then open `http://127.0.0.1:4173/`
-- Live collector: dashboard Live RPC Lab or `npm run fiber-scope -- collect --rpc http://127.0.0.1:8227 --out snapshots/live-node.json --self-rebalance`
-- Readiness gate: `npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json`
-- Operator runbook: `npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json`
-- Runbook artifact: [docs/demo-runbook.md](docs/demo-runbook.md)
-- CLI transcript: [docs/demo-transcript.md](docs/demo-transcript.md)
-- Diagnostic report: [docs/demo-report.md](docs/demo-report.md)
-- Snapshot diff: [docs/demo-diff.md](docs/demo-diff.md)
-- Desktop screenshot: [docs/ui-desktop.png](docs/ui-desktop.png)
-- Mobile screenshot: [docs/ui-mobile.png](docs/ui-mobile.png)
-- License: [LICENSE](LICENSE)
+## Working Implementation
 
-## Demo Flow
+- FNN collector for `node_info`, `list_peers`, `list_channels`, `graph_nodes`, and `graph_channels`.
+- Bounded cursor pagination using Fiber's hex-encoded RPC integer schema.
+- Optional `send_payment` dry-run evidence for target and circular self-payment probes.
+- Stable findings with severity, evidence, and recommended action.
+- Strict readiness gate with machine-usable exit status.
+- Finding-driven runbook with exact RPC payloads, safety class, approval policy, and success condition.
+- Responsive topology console, snapshot upload, report export, and before/after comparison.
+- Public-node bootstrap presets based on Fiber's documented node data.
+- 24 automated tests plus a static production build.
+
+## Execution Boundary
+
+| Mode | What works | Boundary |
+| --- | --- | --- |
+| Hosted demo | fixture analysis, topology, gate, runbook, diff, uploads, exports | no RPC proxy is deployed |
+| Local dashboard | all hosted features plus live FNN collection | server binds to `127.0.0.1` |
+| CLI | collection, inspect, gate, diff, presets, reports, runbooks | writes files only |
+| Remediation | exact reviewable RPC/CLI actions | never executed automatically |
+| Payment probe | `send_payment` with `dry_run: true` | never sends value |
+
+## Technical Breakdown
+
+The project is dependency-free Node.js and browser JavaScript:
+
+- `src/rpc.js`: FNN JSON-RPC collection and graph pagination.
+- `src/core.js`: normalization, findings, readiness gate, diff, and runbook model.
+- `src/presets.js`: documented public-node presets and bootstrap payloads.
+- `src/cli.js`: command interface and Markdown outputs.
+- `public/app.js`: browser renderer using the same core model.
+- `scripts/serve.js`: loopback-only local dashboard and collector proxy.
+- `scripts/build-static.js`: fixture-only GitHub Pages artifact.
+
+Architecture and commands are documented in [README.md](README.md). Security boundaries are documented in [SECURITY.md](SECURITY.md).
+
+## Evidence
+
+- [Live public-node validation](docs/LIVE_VALIDATION.md)
+- [CLI transcript](docs/demo-transcript.md)
+- [Diagnostic report](docs/demo-report.md)
+- [Operator runbook](docs/demo-runbook.md)
+- [Snapshot diff](docs/demo-diff.md)
+- [Desktop UI](docs/ui-desktop.png)
+- [Mobile UI](docs/ui-mobile.png)
+
+Reviewer verification:
 
 ```bash
-npm install
 npm run verify
 npm run dashboard
 ```
 
-Suggested reviewer path:
-
-1. Open the dashboard.
-2. Use the Live RPC Lab if a local FNN RPC endpoint is available.
-3. Check the Readiness Gate to see the automation decision and blockers.
-4. Review the Operator Runbook and select each step to inspect its scope, safety class, exact payload, and success condition.
-5. Look at route state, liquidity map, findings, and rebalance probe.
-6. Open Snapshot Diff to see fresh-node -> route-probed-node progress.
-7. Open Public Node Presets to see generated `connect_peer` and `open_channel` payloads.
-8. Read [docs/demo-transcript.md](docs/demo-transcript.md) for the CLI version.
-
-## Implemented Features
-
-- Fixture-backed Fiber snapshot inspector.
-- Live FNN RPC collector with bounded graph pagination.
-- Dashboard live-collector proxy for local RPC endpoints.
-- Topology-led operator console derived from captured Fiber graph nodes, channels, node identity, and payment target.
-- Payment-readiness gate with non-zero exit codes for automation.
-- Finding-driven operator runbook with read-only, dry-run, reversible-write, funding-write, and manual safety classes.
-- Exact `connect_peer`, `open_channel`, `update_channel`, graph-check, and `send_payment` dry-run payloads with approval policy and success criteria.
-- Stable diagnostic fingerprints.
-- Circular rebalance candidate generation using `allow_self_payment: true`.
-- Before/after snapshot diff.
-- Public-node presets for documented mainnet/testnet Fiber public nodes.
-- Markdown report and diff export.
-- Modern responsive dashboard.
-- Node test coverage for analyzer, collector, diff, and presets.
-
-## Known Limitations
-
-- Fixtures drive the default demo; live-node collection requires access to an FNN RPC endpoint.
-- Public-node preset values are sourced from the checked local Fiber docs and should be refreshed if upstream docs change.
-- The route dry-run analysis explains captured errors, but it does not yet simulate Fiber routing internally.
-- Runbooks are intentionally review-only. The dashboard does not execute `connect_peer`, `open_channel`, `update_channel`, or payment RPCs.
-
 ## Roadmap
 
-- Approval-gated live runbook execution after a local multi-node devnet rehearsal.
-- Snapshot history and trend view.
-- Fee budget simulator for route candidates.
-- WSS readiness checks for browser/WASM Fiber nodes.
+1. Validate against a controlled multi-node Fiber devnet and preserve versioned compatibility fixtures.
+2. Add local snapshot history and trend alerts.
+3. Add approval-gated remediation execution with policy and audit logging.
+4. Add fee-budget and route-candidate comparison using upstream Fiber routing primitives.
+
+## AI Disclosure
+
+AI assistance was used for implementation and documentation. Protocol behavior was checked against the Fiber source and RPC documentation, covered by automated tests, exercised in the browser, and validated through read-only collection from the documented public Fiber node. Product scope, safety boundaries, and final verification remained human-directed.

@@ -89,6 +89,22 @@ test('rejects invalid collector RPC URLs', async () => {
   }
 });
 
+test('static server does not expose the collector API', async () => {
+  const server = createServer({ apiEnabled: false });
+  const port = await listen(server);
+
+  try {
+    const response = await postJson(port, '/api/collect', {
+      rpcUrl: 'http://127.0.0.1:8227'
+    });
+
+    assert.equal(response.status, 405);
+    assert.equal(response.body.ok, false);
+  } finally {
+    await close(server);
+  }
+});
+
 function resultFor(method) {
   if (method === 'node_info') {
     return {
