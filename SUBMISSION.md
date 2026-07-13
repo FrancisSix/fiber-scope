@@ -22,6 +22,7 @@ Fiber exposes the right primitives, but operators still have to manually correla
 - Snapshot diff: [docs/demo-diff.md](docs/demo-diff.md)
 - Desktop screenshot: [docs/ui-desktop.png](docs/ui-desktop.png)
 - Mobile screenshot: [docs/ui-mobile.png](docs/ui-mobile.png)
+- License: [LICENSE](LICENSE)
 
 ## Demo Flow
 

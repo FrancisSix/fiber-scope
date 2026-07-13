@@ -16,6 +16,8 @@ Dashboard: `http://127.0.0.1:4173/`
 
 The prototype has no runtime package dependencies; `npm install` only creates the local package metadata.
 
+License: MIT. See [`LICENSE`](LICENSE).
+
 ## CLI
 
 ```bash

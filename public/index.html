@@ -88,7 +88,10 @@
           <section class="panel command-panel">
             <div class="panel-heading">
               <h2>Rebalance Probe</h2>
-              <span id="rebalance-count"></span>
+              <div class="heading-actions">
+                <span id="rebalance-count"></span>
+                <button id="copy-rebalance" class="mini-button" type="button">Copy</button>
+              </div>
             </div>
             <pre id="rebalance-output" class="code-block"></pre>
           </section>
@@ -106,7 +109,10 @@
           <section class="panel presets-panel">
             <div class="panel-heading">
               <h2>Public Node Presets</h2>
-              <span id="preset-count"></span>
+              <div class="heading-actions">
+                <span id="preset-count"></span>
+                <button id="copy-preset" class="mini-button" type="button">Copy</button>
+              </div>
             </div>
             <div id="preset-list" class="preset-list"></div>
             <pre id="preset-runbook" class="preset-runbook"></pre>
@@ -121,6 +127,7 @@
           </section>
         </section>
       </main>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
 
     <script type="module" src="/public/app.js"></script>

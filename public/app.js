@@ -38,6 +38,7 @@ const elements = {
   channels: document.querySelector('#channel-list'),
   rebalanceCount: document.querySelector('#rebalance-count'),
   rebalance: document.querySelector('#rebalance-output'),
+  copyRebalance: document.querySelector('#copy-rebalance'),
   diffCount: document.querySelector('#diff-count'),
   diffSummary: document.querySelector('#diff-summary'),
   diffMetrics: document.querySelector('#diff-metrics'),
@@ -45,8 +46,10 @@ const elements = {
   presetCount: document.querySelector('#preset-count'),
   presetList: document.querySelector('#preset-list'),
   presetRunbook: document.querySelector('#preset-runbook'),
+  copyPreset: document.querySelector('#copy-preset'),
   rpcCount: document.querySelector('#rpc-count'),
-  rpc: document.querySelector('#rpc-coverage')
+  rpc: document.querySelector('#rpc-coverage'),
+  toast: document.querySelector('#toast')
 };
 
 const publicNodePresets = listPublicNodePresets();
@@ -87,6 +90,12 @@ function wireEvents() {
     link.download = 'fiber-scope-report.md';
     link.click();
     URL.revokeObjectURL(link.href);
+  });
+  elements.copyRebalance.addEventListener('click', () => {
+    copyText(elements.rebalance.textContent, 'Rebalance probe copied');
+  });
+  elements.copyPreset.addEventListener('click', () => {
+    copyText(elements.presetRunbook.textContent, 'Public-node runbook copied');
   });
 }
 
@@ -304,6 +313,33 @@ function statusColor(status) {
   if (status === 'ready') return '#4ade80';
   if (status === 'blocked') return '#ff5c77';
   return '#f4b740';
+}
+
+async function copyText(text, message) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.opacity = '0';
+    document.body.append(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    textArea.remove();
+  }
+  showToast(message);
+}
+
+function showToast(message) {
+  elements.toast.textContent = message;
+  elements.toast.classList.add('visible');
+  clearTimeout(showToast.timeout);
+  showToast.timeout = setTimeout(() => {
+    elements.toast.classList.remove('visible');
+  }, 1800);
 }
 
 function escapeHtml(value) {
