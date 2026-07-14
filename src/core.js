@@ -270,6 +270,7 @@ export function inspectSnapshot(snapshot, options = {}) {
     score,
     capturedAt: snapshot?.meta?.capturedAt ?? snapshot?.capturedAt ?? null,
     source: snapshot?.meta?.source ?? 'snapshot',
+    evidence: buildEvidenceSummary(snapshot, nodeInfo),
     intent: {
       amount: requestedAmount === null ? null : toRpcHex(requestedAmount),
       targetPubkey: snapshot?.intent?.targetPubkey ?? snapshot?.meta?.targetPubkey ?? null
@@ -293,6 +294,67 @@ export function inspectSnapshot(snapshot, options = {}) {
     channels: channelViews,
     rebalanceSuggestions,
     rpcCoverage: buildRpcCoverage(rpc)
+  };
+}
+
+function buildEvidenceSummary(snapshot, nodeInfo) {
+  const replay = snapshot?.meta?.replay;
+  const source = snapshot?.meta?.source ?? 'snapshot';
+  const capturedAt = snapshot?.meta?.capturedAt ?? snapshot?.capturedAt ?? null;
+
+  if (replay?.kind === 'real_capture') {
+    return {
+      kind: 'real_capture',
+      label: 'Real FNN replay',
+      capturedAt,
+      nodeLabel: replay.nodeLabel ?? nodeInfo.node_name ?? 'public Fiber node',
+      fnnVersion: replay.fnnVersion ?? nodeInfo.version ?? 'unknown',
+      sourceDocument: replay.sourceDocument ?? null,
+      sanitized: Boolean(replay.sanitized),
+      bounded: Boolean(replay.bounded),
+      observedCounts: replay.observedCounts ?? {},
+      pagination: replay.pagination ?? {}
+    };
+  }
+
+  if (/^https?:\/\//i.test(source)) {
+    return {
+      kind: 'live_capture',
+      label: 'Live FNN capture',
+      capturedAt,
+      nodeLabel: nodeInfo.node_name ?? 'Fiber node',
+      fnnVersion: nodeInfo.version ?? 'unknown',
+      sanitized: false,
+      bounded: Boolean(
+        snapshot?.rpc?.graph_nodes?.result?.truncated ||
+        snapshot?.rpc?.graph_channels?.result?.truncated
+      ),
+      observedCounts: {},
+      pagination: {
+        graphNodes: graphPagination(snapshot?.rpc?.graph_nodes?.result, snapshot?.meta?.graphLimit),
+        graphChannels: graphPagination(snapshot?.rpc?.graph_channels?.result, snapshot?.meta?.graphLimit)
+      }
+    };
+  }
+
+  return {
+    kind: source.startsWith('fixture:') ? 'deterministic_fixture' : 'snapshot',
+    label: source.startsWith('fixture:') ? 'Deterministic fixture' : 'Snapshot',
+    capturedAt,
+    nodeLabel: nodeInfo.node_name ?? 'Fiber node',
+    fnnVersion: nodeInfo.version ?? 'unknown',
+    sanitized: false,
+    bounded: false,
+    observedCounts: {},
+    pagination: {}
+  };
+}
+
+function graphPagination(result = {}, fallbackLimit = null) {
+  return {
+    pages: Number(result.pages ?? 0),
+    limit: Number(fallbackLimit ?? 0),
+    truncated: Boolean(result.truncated)
   };
 }
 
@@ -877,6 +939,7 @@ export function renderConsoleSummary(inspection) {
   lines.push(`FiberScope: ${inspection.status.toUpperCase()} (${inspection.score}/100)`);
   lines.push(`Node: ${inspection.metrics.nodeName} ${inspection.metrics.version} ${inspection.metrics.pubkey ? shortPubkey(inspection.metrics.pubkey) : ''}`.trim());
   lines.push(`Peers: ${inspection.metrics.peerCount} | Ready channels: ${inspection.metrics.activeChannelCount}/${inspection.metrics.channelCount} | Graph channels: ${inspection.metrics.graphChannelCount}`);
+  lines.push(`Evidence: ${inspection.evidence.label}${inspection.capturedAt ? ` | Captured ${inspection.capturedAt}` : ''}${inspection.evidence.sanitized ? ' | sanitized' : ''}${inspection.evidence.bounded ? ' | bounded' : ''}`);
   lines.push('');
 
   if (inspection.findings.length === 0) {
@@ -907,6 +970,8 @@ export function renderMarkdownReport(snapshot, inspection = inspectSnapshot(snap
   lines.push(`- Score: **${inspection.score}/100**`);
   lines.push(`- Source: \`${inspection.source}\``);
   if (inspection.capturedAt) lines.push(`- Captured: \`${inspection.capturedAt}\``);
+  lines.push(`- Evidence: **${inspection.evidence.label}**${inspection.evidence.sanitized ? ', sanitized' : ''}${inspection.evidence.bounded ? ', bounded' : ''}`);
+  if (inspection.evidence.sourceDocument) lines.push(`- Provenance: \`${inspection.evidence.sourceDocument}\``);
   if (inspection.intent.amount) lines.push(`- Target amount: \`${inspection.intent.amount}\``);
   lines.push('');
   lines.push('## Node Snapshot');

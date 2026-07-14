@@ -40,11 +40,22 @@
             <span class="context-label">Payment operations / route readiness</span>
             <div class="page-title-row">
               <h1>Node command center</h1>
+              <span id="snapshot-origin" class="snapshot-origin">loading evidence</span>
               <span id="snapshot-label" class="snapshot-label">loading snapshot</span>
             </div>
           </div>
 
           <div class="controls" aria-label="Snapshot controls">
+            <label class="scenario-field">
+              <span>Scenario</span>
+              <select id="scenario-select">
+                <option value="real-public-node">Real FNN / public node replay</option>
+                <option value="route-blocked">Fixture / route blocked</option>
+                <option value="route-ready">Fixture / route ready</option>
+                <option value="fresh-node">Fixture / fresh node</option>
+                <option value="auth-scope">Fixture / auth scope</option>
+              </select>
+            </label>
             <label class="amount-field">
               <span>Probe amount</span>
               <input id="amount-input" value="0x2540be400" spellcheck="false">
@@ -80,6 +91,7 @@
                 </div>
               </div>
               <div class="node-facts" id="node-facts"></div>
+              <div class="snapshot-provenance" id="snapshot-provenance"></div>
             </aside>
 
             <section class="topology-stage">

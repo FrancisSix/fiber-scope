@@ -16,7 +16,7 @@
 
 FiberScope is a diagnostic console for Fiber Network operators. It collects FNN JSON-RPC state and turns it into route-readiness findings, an automation gate, a before/after diff, and an ordered remediation runbook.
 
-The hosted build gives judges a deterministic fixture-backed review path. Running the project locally enables live collection from an operator-selected FNN endpoint through the same analyzer.
+The hosted build defaults to a sanitized replay captured from Fiber's documented public FNN node and also includes deterministic failure scenarios. Running the project locally enables fresh collection from an operator-selected FNN endpoint through the same analyzer.
 
 ## Gap
 
@@ -28,19 +28,21 @@ FiberScope closes that operational gap without taking custody of funds or execut
 
 - FNN collector for `node_info`, `list_peers`, `list_channels`, `graph_nodes`, and `graph_channels`.
 - Bounded cursor pagination using Fiber's hex-encoded RPC integer schema.
+- Sanitized real-node replay with capture provenance, observed counts, and pagination status.
+- One-click scenarios for real capture, route failure, route readiness, fresh node, and Biscuit scope failure.
 - Optional `send_payment` dry-run evidence for target and circular self-payment probes.
 - Stable findings with severity, evidence, and recommended action.
 - Strict readiness gate with machine-usable exit status.
 - Finding-driven runbook with exact RPC payloads, safety class, approval policy, and success condition.
 - Responsive topology console, snapshot upload, report export, and before/after comparison.
 - Public-node bootstrap presets based on Fiber's documented node data.
-- 24 automated tests plus a static production build.
+- 26 automated tests plus a static production build.
 
 ## Execution Boundary
 
 | Mode | What works | Boundary |
 | --- | --- | --- |
-| Hosted demo | fixture analysis, topology, gate, runbook, diff, uploads, exports | no RPC proxy is deployed |
+| Hosted demo | sanitized real replay, deterministic scenarios, topology, gate, runbook, diff, uploads, exports | no RPC proxy is deployed |
 | Local dashboard | all hosted features plus live FNN collection | server binds to `127.0.0.1` |
 | CLI | collection, inspect, gate, diff, presets, reports, runbooks | writes files only |
 | Remediation | exact reviewable RPC/CLI actions | never executed automatically |
@@ -51,12 +53,14 @@ FiberScope closes that operational gap without taking custody of funds or execut
 The project is dependency-free Node.js and browser JavaScript:
 
 - `src/rpc.js`: FNN JSON-RPC collection and graph pagination.
+- `src/replay.js`: deterministic redaction and bounded replay packaging.
 - `src/core.js`: normalization, findings, readiness gate, diff, and runbook model.
 - `src/presets.js`: documented public-node presets and bootstrap payloads.
 - `src/cli.js`: command interface and Markdown outputs.
 - `public/app.js`: browser renderer using the same core model.
 - `scripts/serve.js`: loopback-only local dashboard and collector proxy.
-- `scripts/build-static.js`: fixture-only GitHub Pages artifact.
+- `scripts/capture-replay.js`: explicit network capture and sanitization command.
+- `scripts/build-static.js`: static GitHub Pages artifact with replay and fixtures.
 
 Architecture and commands are documented in [README.md](README.md). Security boundaries are documented in [SECURITY.md](SECURITY.md).
 
@@ -64,6 +68,7 @@ Architecture and commands are documented in [README.md](README.md). Security bou
 
 - [Judge test flow and screenshots](docs/JUDGE_TEST_FLOW.md)
 - [Live public-node validation](docs/LIVE_VALIDATION.md)
+- [Real-node diagnostic report](docs/real-node-report.md)
 - [CLI transcript](docs/demo-transcript.md)
 - [Diagnostic report](docs/demo-report.md)
 - [Operator runbook](docs/demo-runbook.md)

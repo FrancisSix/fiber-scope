@@ -12,7 +12,35 @@ npm run fiber-scope -- fixtures
 auth-permission-error.json       Protected RPC missing graph and peer scopes
 healthy-ready.json               Healthy node with successful dry run
 no-peers-no-graph.json           Fresh node before peer and channel setup
+real-public-node-replay.json     Sanitized real FNN public-node capture
 unbalanced-route-failure.json    Unbalanced channels with route dry-run failure
+```
+
+## Inspect the sanitized real public-node replay
+
+```bash
+npm run fiber-scope -- inspect --snapshot fixtures/real-public-node-replay.json
+```
+
+```text
+FiberScope: DEGRADED (73/100)
+Node: CkbaNode-2 0.9.0-rc7 0291a657...912fcc
+Peers: 5 | Ready channels: 74/89 | Graph channels: 100
+Evidence: Real FNN replay | Captured 2026-07-14T00:07:22.197Z | sanitized | bounded
+
+Findings:
+- [WARNING] FS-CHANNEL-FAILED-001: Channel opening failures are present
+  Evidence: 020911b8...fb4649: Peer disconnected during channel opening; 02e979b8...30487a: Peer disconnected during channel opening; 02f9dbfb...5f6b9e: Peer disconnected during channel opening; 02f5cef5...8aaf64: Peer disconnected during channel opening; 02312da1...822d82: Peer disconnected during channel opening; 02de127f...dd8a33: Peer disconnected during channel opening; 02a8ce52...3343bf: Peer disconnected during channel opening; 0252fa67...878c4d: Peer disconnected during channel opening; 02b50224...81c2d0: Peer disconnected during channel opening; 025bb66c...b90679: Peer disconnected during channel opening; 02d25f95...dcb95a: Peer disconnected during channel opening
+  Next: Fix the failure_detail cause before retrying the same peer or funding amount.
+- [WARNING] FS-CHANNEL-PENDING-001: Some channels are still opening
+  Evidence: 020911b8...fb4649 AwaitingChannelReady local=151 CKB remote=901 CKB; 02e979b8...30487a AwaitingChannelReady local=151 CKB remote=901 CKB; 02f9dbfb...5f6b9e AwaitingChannelReady local=151 CKB remote=901 CKB; 02f5cef5...8aaf64 AwaitingChannelReady local=151 CKB remote=901 CKB; 02312da1...822d82 AwaitingChannelReady local=151 CKB remote=901 CKB
+  Next: Wait for ChannelReady, or inspect failed pending channels with include_closed and only_pending.
+- [WARNING] FS-LIQUIDITY-OUTBOUND-LOW-001: Outbound liquidity is thin on ready channels
+  Evidence: 023fe261...b1c580 local=151 CKB (14%); 0289a99d...7dc4d7 local=151 CKB (14%); 02d14121...e1426e local=151 CKB (14%); 0274326f...6b4658 local=151 CKB (14%); 024ceb08...abab7a local=151 CKB (14%)
+  Next: Try a smaller dry-run amount, open an additional funded channel, or rebalance from an outbound-heavy channel.
+- [INFO] FS-ROUTE-DRYRUN-MISSING-001: No route dry run was captured
+  Evidence: Snapshot does not include send_payment dry_run or build_router output.
+  Next: Run send_payment with dry_run: true before executing the actual payment.
 ```
 
 ## Generate a testnet public-node runbook
@@ -79,6 +107,7 @@ npm run fiber-scope -- inspect --snapshot fixtures/unbalanced-route-failure.json
 FiberScope: DEGRADED (82/100)
 Node: alpha-operator 0.8.0 02aaaaaa...aaaaaa
 Peers: 2 | Ready channels: 2/2 | Graph channels: 2
+Evidence: Deterministic fixture | Captured 2026-07-13T15:30:00.000Z
 
 Findings:
 - [WARNING] FS-LIQUIDITY-OUTBOUND-LOW-001: Outbound liquidity is thin on ready channels

@@ -14,6 +14,7 @@ import {
 } from '../src/presets.js';
 
 const state = {
+  scenarioId: 'real-public-node',
   baselineSnapshot: null,
   snapshot: null,
   inspection: null,
@@ -24,6 +25,7 @@ const state = {
 };
 
 const elements = {
+  scenario: document.querySelector('#scenario-select'),
   file: document.querySelector('#snapshot-file'),
   baselineFile: document.querySelector('#baseline-file'),
   amount: document.querySelector('#amount-input'),
@@ -33,6 +35,7 @@ const elements = {
   liveDialog: document.querySelector('#live-dialog'),
   liveStatus: document.querySelector('#live-status'),
   networkName: document.querySelector('#network-name'),
+  snapshotOrigin: document.querySelector('#snapshot-origin'),
   snapshotLabel: document.querySelector('#snapshot-label'),
   liveRpcUrl: document.querySelector('#live-rpc-url'),
   liveAuthToken: document.querySelector('#live-auth-token'),
@@ -47,6 +50,7 @@ const elements = {
   nodeName: document.querySelector('#node-name'),
   nodePubkey: document.querySelector('#node-pubkey'),
   nodeFacts: document.querySelector('#node-facts'),
+  snapshotProvenance: document.querySelector('#snapshot-provenance'),
   metrics: document.querySelector('#metric-strip'),
   routeMethod: document.querySelector('#route-method'),
   routeVerdict: document.querySelector('#route-verdict'),
@@ -87,6 +91,36 @@ const elements = {
   toast: document.querySelector('#toast')
 };
 
+const snapshotScenarios = [
+  {
+    id: 'real-public-node',
+    snapshot: './fixtures/real-public-node-replay.json',
+    baseline: './fixtures/no-peers-no-graph.json'
+  },
+  {
+    id: 'route-blocked',
+    snapshot: './fixtures/unbalanced-route-failure.json',
+    baseline: './fixtures/no-peers-no-graph.json'
+  },
+  {
+    id: 'route-ready',
+    snapshot: './fixtures/healthy-ready.json',
+    baseline: './fixtures/unbalanced-route-failure.json'
+  },
+  {
+    id: 'fresh-node',
+    snapshot: './fixtures/no-peers-no-graph.json',
+    baseline: './fixtures/no-peers-no-graph.json'
+  },
+  {
+    id: 'auth-scope',
+    snapshot: './fixtures/auth-permission-error.json',
+    baseline: './fixtures/no-peers-no-graph.json'
+  }
+];
+
+const maxRenderedChannels = 24;
+
 const publicNodePresets = listPublicNodePresets();
 let activePresetName = publicNodePresets.find((preset) => preset.network === 'testnet')?.name ?? publicNodePresets[0]?.name;
 let topologyResizeObserver;
@@ -94,18 +128,64 @@ let topologyResizeObserver;
 boot();
 
 async function boot() {
-  const [baselineResponse, response, liveRpcAvailable] = await Promise.all([
-    fetch('./fixtures/no-peers-no-graph.json'),
-    fetch('./fixtures/unbalanced-route-failure.json'),
+  const scenario = scenarioById(state.scenarioId);
+  const [baselineSnapshot, snapshot, liveRpcAvailable] = await Promise.all([
+    fetchSnapshot(scenario.baseline),
+    fetchSnapshot(scenario.snapshot),
     detectLocalCollector()
   ]);
-  state.baselineSnapshot = await baselineResponse.json();
-  state.snapshot = await response.json();
+  state.baselineSnapshot = baselineSnapshot;
+  state.snapshot = snapshot;
   state.liveRpcAvailable = liveRpcAvailable;
+  elements.scenario.value = state.scenarioId;
   wireEvents();
   renderRuntimeMode();
   observeTopology();
   render();
+}
+
+async function fetchSnapshot(snapshotPath) {
+  const response = await fetch(snapshotPath);
+  if (!response.ok) throw new Error(`Snapshot request failed with HTTP ${response.status}`);
+  return response.json();
+}
+
+function scenarioById(id) {
+  return snapshotScenarios.find((scenario) => scenario.id === id) ?? snapshotScenarios[0];
+}
+
+async function loadScenario(id) {
+  const scenario = scenarioById(id);
+  elements.scenario.disabled = true;
+  try {
+    const [baselineSnapshot, snapshot] = await Promise.all([
+      fetchSnapshot(scenario.baseline),
+      fetchSnapshot(scenario.snapshot)
+    ]);
+    state.scenarioId = scenario.id;
+    state.baselineSnapshot = baselineSnapshot;
+    state.snapshot = snapshot;
+    state.selectedRunbookStepId = null;
+    render();
+    showToast('Scenario loaded');
+  } catch (error) {
+    showToast(error.message.slice(0, 120));
+  } finally {
+    elements.scenario.disabled = false;
+  }
+}
+
+function markCustomScenario(label) {
+  let option = elements.scenario.querySelector('[value="custom"]');
+  if (!option) {
+    option = document.createElement('option');
+    option.value = 'custom';
+    option.disabled = true;
+    elements.scenario.prepend(option);
+  }
+  option.textContent = label;
+  elements.scenario.value = 'custom';
+  state.scenarioId = null;
 }
 
 async function detectLocalCollector() {
@@ -142,6 +222,9 @@ function wireEvents() {
   }
   window.addEventListener('hashchange', () => setActiveRailLink(window.location.hash));
   setActiveRailLink(window.location.hash);
+  elements.scenario.addEventListener('change', () => {
+    if (elements.scenario.value !== 'custom') loadScenario(elements.scenario.value);
+  });
   elements.amount.addEventListener('input', () => {
     renderLiveCommand();
     render();
@@ -150,6 +233,7 @@ function wireEvents() {
     const file = elements.file.files?.[0];
     if (!file) return;
     state.snapshot = JSON.parse(await file.text());
+    markCustomScenario('Uploaded snapshot');
     elements.liveStatus.textContent = 'uploaded snapshot';
     render();
   });
@@ -234,6 +318,7 @@ function render() {
   document.body.dataset.status = inspection.status;
   elements.networkName.textContent = inspection.network ?? 'network unknown';
   elements.snapshotLabel.textContent = inspection.source;
+  renderSnapshotProvenance(inspection);
   elements.status.textContent = inspection.status;
   elements.status.className = `status-pill ${inspection.status}`;
   elements.score.textContent = inspection.score;
@@ -288,6 +373,7 @@ async function collectLiveSnapshot() {
 
     state.baselineSnapshot = state.snapshot;
     state.snapshot = body.snapshot;
+    markCustomScenario('Live FNN capture');
     elements.liveStatus.textContent = 'live snapshot';
     render();
     elements.liveDialog.close();
@@ -359,6 +445,68 @@ function renderNodeFacts(inspection) {
       <strong>${escapeHtml(String(value))}</strong>
     </div>
   `).join('');
+}
+
+function renderSnapshotProvenance(inspection) {
+  const evidence = inspection.evidence;
+  const rpcOk = inspection.rpcCoverage.filter((item) => item.status === 'ok').length;
+  elements.snapshotOrigin.textContent = evidence.label;
+  elements.snapshotOrigin.className = `snapshot-origin ${evidence.kind}`;
+
+  if (evidence.kind === 'real_capture') {
+    const counts = evidence.observedCounts;
+    const nodePagination = evidence.pagination.graphNodes ?? {};
+    const channelPagination = evidence.pagination.graphChannels ?? {};
+    elements.liveStatus.textContent = state.liveRpcAvailable ? 'Real replay' : 'Hosted real replay';
+    elements.snapshotProvenance.innerHTML = `
+      <div class="snapshot-provenance-head">
+        <span>Sanitized real capture</span>
+        <strong>${escapeHtml(formatCapturedAt(evidence.capturedAt))}</strong>
+      </div>
+      <p>${escapeHtml(evidence.nodeLabel)} · FNN ${escapeHtml(evidence.fnnVersion)} · ${evidence.bounded ? 'bounded graph replay' : 'complete graph replay'} · ${escapeHtml(evidence.sourceDocument ?? 'source documented')}</p>
+      <div class="snapshot-provenance-grid">
+        <div><span>Peers</span><strong>${escapeHtml(String(counts.connectedPeers ?? inspection.metrics.peerCount))}</strong></div>
+        <div><span>Non-closed</span><strong>${escapeHtml(String(counts.includedChannels ?? inspection.metrics.channelCount))}</strong></div>
+        <div><span>Graph cap</span><strong>${escapeHtml(`${nodePagination.included ?? inspection.metrics.graphNodeCount} / ${channelPagination.included ?? inspection.metrics.graphChannelCount}`)}</strong></div>
+      </div>
+    `;
+    return;
+  }
+
+  if (evidence.kind === 'deterministic_fixture') {
+    elements.liveStatus.textContent = state.liveRpcAvailable ? 'Fixture mode' : 'Hosted fixture demo';
+  } else if (evidence.kind === 'live_capture') {
+    elements.liveStatus.textContent = 'Live snapshot';
+  } else {
+    elements.liveStatus.textContent = 'Loaded snapshot';
+  }
+
+  elements.snapshotProvenance.innerHTML = `
+    <div class="snapshot-provenance-head">
+      <span>${escapeHtml(evidence.label)}</span>
+      <strong>${escapeHtml(evidence.capturedAt ? formatCapturedAt(evidence.capturedAt) : 'Bundled scenario')}</strong>
+    </div>
+    <p>${evidence.kind === 'deterministic_fixture' ? 'Deterministic evidence for repeatable diagnostics and regression review.' : 'Snapshot evidence processed by the shared FiberScope analyzer.'}</p>
+    <div class="snapshot-provenance-grid">
+      <div><span>RPC</span><strong>${rpcOk}/${inspection.rpcCoverage.length}</strong></div>
+      <div><span>Route</span><strong>${escapeHtml(routeLabel(inspection.route.status))}</strong></div>
+      <div><span>Findings</span><strong>${inspection.findings.length}</strong></div>
+    </div>
+  `;
+}
+
+function formatCapturedAt(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value ?? 'not recorded');
+  return `${date.toLocaleString('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })} UTC`;
 }
 
 function renderMetrics(inspection) {
@@ -613,8 +761,11 @@ function renderFindings(inspection) {
 }
 
 function renderChannels(inspection) {
-  elements.channelCount.textContent = `${inspection.channels.length} listed`;
-  elements.channels.innerHTML = inspection.channels.map((channel) => {
+  const displayedChannels = inspection.channels.slice(0, maxRenderedChannels);
+  elements.channelCount.textContent = inspection.channels.length > displayedChannels.length
+    ? `${displayedChannels.length} of ${inspection.channels.length} shown`
+    : `${inspection.channels.length} listed`;
+  elements.channels.innerHTML = displayedChannels.map((channel) => {
     const percent = Math.max(0, Math.min(100, Math.round(channel.localRatio * 100)));
     return `
       <article class="channel-row">

@@ -4,6 +4,7 @@
 - Score: **82/100**
 - Source: `fixture:unbalanced-route-failure`
 - Captured: `2026-07-13T15:30:00.000Z`
+- Evidence: **Deterministic fixture**
 - Target amount: `0x2540be400`
 
 ## Node Snapshot

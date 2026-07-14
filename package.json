@@ -25,6 +25,7 @@
   },
   "scripts": {
     "build:static": "node ./scripts/build-static.js",
+    "capture:replay": "node ./scripts/capture-replay.js",
     "fiber-scope": "node ./src/cli.js",
     "dashboard": "node ./scripts/serve.js",
     "demo:transcript": "node ./scripts/demo-transcript.js",

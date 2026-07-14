@@ -21,24 +21,25 @@ FiberScope converts that evidence into one stable diagnostic contract shared by 
 | Automation | Strict readiness gate with exit code `2` on failure |
 | Remediation | Ordered, safety-labeled, review-only RPC and CLI steps with success criteria |
 | Liquidity | Outbound capacity checks and circular self-payment rebalance candidates |
-| Evidence | Before/after diff, Markdown report, runbook export, RPC coverage |
-| UI | Responsive route topology, findings, liquidity, gate, runbook, and snapshot upload |
+| Evidence | Sanitized real-node replay, before/after diff, Markdown report, runbook export, RPC coverage |
+| UI | Scenario switching, responsive route topology, findings, liquidity, gate, runbook, and snapshot upload |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   F["Deterministic fixtures"] --> UI["Browser console"]
+  RC["Sanitized real FNN capture"] --> UI
   S["Uploaded snapshot"] --> UI
   UI --> C["Shared analyzer"]
   CLI["Node.js CLI"] --> C
   C --> O["Findings, gate, diff, runbook"]
   CLI --> P["Local collector proxy"]
   UI --> P
-  P --> R["FNN JSON-RPC"]
+  P --> RPC["FNN JSON-RPC"]
 ```
 
-The hosted demo is static and fixture-backed. Live RPC collection is available only through the local server, which binds to `127.0.0.1`.
+The hosted demo includes a sanitized replay captured from a real public FNN node plus deterministic regression scenarios. Live RPC collection is available only through the local server, which binds to `127.0.0.1`.
 
 ## Quick Start
 
@@ -52,6 +53,26 @@ npm run dashboard
 ```
 
 Open `http://127.0.0.1:4173/`.
+
+## Real-Node Replay
+
+The default dashboard scenario replays a read-only capture from Fiber's documented public testnet node 2:
+
+- node `CkbaNode-2`, FNN `0.9.0-rc7`;
+- 5 connected peers and 89 non-closed local channel records;
+- bounded pages containing 100 graph nodes and 100 graph channels;
+- capture timestamp, pagination status, RPC coverage, and source-document provenance shown in the UI.
+
+The committed replay removes peer and graph addresses, pseudonymizes counterparties and transaction identifiers, drops closed channels, and clears pending TLC details. Regenerate it with:
+
+```bash
+npm run capture:replay -- \
+  --rpc http://18.163.221.211:8227 \
+  --graph-limit 100 \
+  --graph-pages 1
+```
+
+Network capture is intentionally excluded from `npm run verify`; normal builds remain deterministic.
 
 ## Live Collection
 
@@ -80,6 +101,7 @@ Use `--amount`, `--target-pubkey`, or `--self-rebalance` to capture a `send_paym
 
 ```bash
 npm run fiber-scope -- fixtures
+npm run fiber-scope -- inspect --snapshot fixtures/real-public-node-replay.json
 npm run fiber-scope -- inspect --snapshot fixtures/unbalanced-route-failure.json
 npm run fiber-scope -- gate --snapshot fixtures/healthy-ready.json
 npm run fiber-scope -- runbook --snapshot fixtures/unbalanced-route-failure.json
@@ -90,6 +112,7 @@ npm run fiber-scope -- presets --network testnet
 Generated reference artifacts:
 
 - [Judge test flow and screenshots](docs/JUDGE_TEST_FLOW.md)
+- [Real-node diagnostic report](docs/real-node-report.md)
 - [Diagnostic report](docs/demo-report.md)
 - [Snapshot diff](docs/demo-diff.md)
 - [Operator runbook](docs/demo-runbook.md)
@@ -126,11 +149,11 @@ See [SECURITY.md](SECURITY.md) for the full boundary.
 npm run verify
 ```
 
-This runs 24 tests, exercises CLI workflows, regenerates demo artifacts, and builds the static site. The collector was also exercised against the Fiber documentation's public node running FNN `0.9.0-rc7`; see [live validation](docs/LIVE_VALIDATION.md).
+This runs 26 tests, exercises CLI workflows, regenerates demo artifacts, and builds the static site. The committed replay and its redaction contract are covered by the same suite; see [live validation](docs/LIVE_VALIDATION.md).
 
 ## Project Status
 
-Implemented: collection, analysis, gate, diff, runbook generation, fixture/static demo, local live dashboard, exports, tests, and CI deployment.
+Implemented: collection, sanitized real-node replay, scenario switching, analysis, gate, diff, runbook generation, local live dashboard, exports, tests, and CI deployment.
 
 Not implemented: historical storage, autonomous remediation, real payment execution, or an internal route simulator. These are deliberate production boundaries, not mocked UI actions.
 

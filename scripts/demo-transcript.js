@@ -12,6 +12,11 @@ const commands = [
     args: ['./src/cli.js', 'fixtures']
   },
   {
+    title: 'Inspect the sanitized real public-node replay',
+    command: 'npm run fiber-scope -- inspect --snapshot fixtures/real-public-node-replay.json',
+    args: ['./src/cli.js', 'inspect', '--snapshot', 'fixtures/real-public-node-replay.json']
+  },
+  {
     title: 'Generate a testnet public-node runbook',
     command: 'npm run fiber-scope -- presets --node fiber-testnet-public-bottle --rpc http://127.0.0.1:8227',
     args: ['./src/cli.js', 'presets', '--node', 'fiber-testnet-public-bottle', '--rpc', 'http://127.0.0.1:8227']

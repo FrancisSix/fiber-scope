@@ -1,15 +1,16 @@
 # Judge Test Flow
 
-This flow validates FiberScope from a clean public clone. It requires Node.js 20 or newer and does not require an FNN node for the deterministic review path.
+This flow validates FiberScope from a clean public clone. It requires Node.js 20 or newer and does not require a running FNN node for replay or deterministic scenarios.
 
 ## Acceptance Criteria
 
 | Check | Expected result |
 | --- | --- |
-| Clean verification | exit `0`, 24 tests pass, 0 fail |
+| Clean verification | exit `0`, 26 tests pass, 0 fail |
 | Healthy readiness gate | exit `0`, status `ready`, score `100/100` |
 | Degraded readiness gate | exit `2` with explicit policy blockers |
-| Dashboard | fixture loads with score `82`, 3 topology nodes, 2 graph channels |
+| Real replay | `CkbaNode-2`, FNN `0.9.0-rc7`, score `73`, bounded 100/100 graph evidence |
+| Dashboard fixture | route-failure scenario loads with score `82`, 3 topology nodes, 2 graph channels |
 | Runbook | four ordered steps; generated payment actions use `dry_run: true` |
 | Evidence | before/after diff, rebalance candidate, RPC coverage, public-node presets |
 
@@ -54,9 +55,23 @@ npm run dashboard
 
 Open `http://127.0.0.1:4173/`. The server must report `FiberScope dashboard` and bind to `127.0.0.1`.
 
-The hosted fixture-only equivalent is https://francissix.github.io/fiber-scope/.
+The hosted static equivalent is https://francissix.github.io/fiber-scope/. It includes the sanitized real-node replay but no collector API.
 
-## 4. Review Route Readiness
+## 4. Review The Real FNN Replay
+
+The default scenario is **Real FNN / public node replay**. Confirm:
+
+- evidence is labeled `Real FNN replay` and `sanitized real capture`;
+- node is `CkbaNode-2`, FNN `0.9.0-rc7`;
+- capture timestamp and `nervos/fiber/docs/public-nodes.md` provenance are visible;
+- observed counts show 5 peers, 89 non-closed channels, and a 100/100 bounded graph;
+- route status is `not probed`, because the capture was strictly read-only.
+
+![Sanitized real FNN replay](judge-flow/03-real-node-replay.png)
+
+## 5. Review Route Readiness
+
+Select **Fixture / route blocked** from **Scenario**.
 
 On **Overview**, confirm:
 
@@ -68,7 +83,7 @@ On **Overview**, confirm:
 
 ![Topology and route-readiness overview](judge-flow/03-dashboard-overview.png)
 
-## 5. Inspect The Runbook
+## 6. Inspect The Runbook
 
 Open **Runbook** and select **Rehearse the circular rebalance candidate**.
 
@@ -82,7 +97,7 @@ Confirm that the selected step:
 
 ![Safety-labeled circular rebalance runbook](judge-flow/04-operator-runbook.png)
 
-## 6. Review Evidence
+## 7. Review Evidence
 
 Open **Evidence** and confirm:
 
@@ -94,7 +109,7 @@ Open **Evidence** and confirm:
 
 ![Snapshot diff and rebalance evidence](judge-flow/05-evidence-and-diff.png)
 
-## 7. Optional Live FNN Check
+## 8. Optional Live FNN Check
 
 Live collection is local-only. Start the dashboard, select **Connect RPC**, and provide an operator-controlled FNN endpoint. The hosted demo intentionally has no collector API.
 
