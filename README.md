@@ -161,7 +161,7 @@ This runs 26 tests, exercises CLI workflows, regenerates demo artifacts, and bui
 | Hosted evidence | Sanitized, bounded real-node replay plus four deterministic scenarios |
 | Verification | 26 automated tests, clean-clone verification, CI and Pages deployment passing |
 | Operator actions | Review-only; payment and rebalance probes remain dry-run only |
-| Remaining submission deliverable | Record and upload the demo video |
+
 
 Production gaps: historical storage, autonomous remediation, real payment execution, controlled multi-node devnet rehearsal, and an internal route simulator. These are explicit boundaries and are not represented as working features.
 
