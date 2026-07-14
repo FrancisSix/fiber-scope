@@ -127,4 +127,4 @@ Do not provide `--amount`, `--target-pubkey`, or `--self-rebalance` for a strict
 
 ## Capture Provenance
 
-The terminal images are rendered from output captured during a clean clone of application commit `66daeb3`. The clone passed verification without workspace files or cached package dependencies. The dashboard images were captured from that clone on `127.0.0.1:4180`; the alternate port avoided the development server already running on `4173`.
+The terminal and dashboard images were captured from a clean clone of application commit `5ac9399`. The clone passed all 26 tests, built the static artifact, exercised the committed real-node replay, and remained clean after verification. Screenshots used `127.0.0.1:4181`; the alternate port avoided the development server already running on `4173`.
