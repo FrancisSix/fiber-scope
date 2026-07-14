@@ -153,9 +153,17 @@ This runs 26 tests, exercises CLI workflows, regenerates demo artifacts, and bui
 
 ## Project Status
 
-Implemented: collection, sanitized real-node replay, scenario switching, analysis, gate, diff, runbook generation, local live dashboard, exports, tests, and CI deployment.
+| Area | Status |
+| --- | --- |
+| Submission build | Hackathon-ready prototype |
+| Hosted dashboard | Deployed on GitHub Pages |
+| Real FNN integration | Read-only collection validated against `CkbaNode-2` running FNN `0.9.0-rc7` |
+| Hosted evidence | Sanitized, bounded real-node replay plus four deterministic scenarios |
+| Verification | 26 automated tests, clean-clone verification, CI and Pages deployment passing |
+| Operator actions | Review-only; payment and rebalance probes remain dry-run only |
+| Remaining submission deliverable | Record and upload the demo video |
 
-Not implemented: historical storage, autonomous remediation, real payment execution, or an internal route simulator. These are deliberate production boundaries, not mocked UI actions.
+Production gaps: historical storage, autonomous remediation, real payment execution, controlled multi-node devnet rehearsal, and an internal route simulator. These are explicit boundaries and are not represented as working features.
 
 Hackathon category: **Node, Routing, Cross-Chain, and Diagnostics Infrastructure**.
 
